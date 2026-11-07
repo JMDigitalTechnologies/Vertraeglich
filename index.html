@@ -155,7 +155,7 @@ nav button{font-size:11px;padding:8px 2px 10px}
 <section class="view on" id="v-check">
   <div class="card">
     <h2>Produkt prüfen</h2>
-    <p class="muted small" style="margin:0 0 12px">Scanne den Barcode – die Zutaten kommen aus der freien Datenbank Open Food Facts und werden für dein Profil bewertet.</p>
+    <p class="muted small" style="margin:0 0 12px">Scanne den Barcode oder suche nach dem Produktnamen – die Zutaten kommen aus der freien Datenbank Open Food Facts und werden für dein Profil bewertet.</p>
     <button class="primary big" id="scanBtn" type="button">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7V5a1 1 0 0 1 1-1h2M17 4h2a1 1 0 0 1 1 1v2M20 17v2a1 1 0 0 1-1 1h-2M7 20H5a1 1 0 0 1-1-1v-2"/><path d="M7 8v8M10 8v8M13 8v8M16 8v8"/></svg>
       Barcode scannen
@@ -168,7 +168,7 @@ nav button{font-size:11px;padding:8px 2px 10px}
     <input id="bcPhoto" type="file" accept="image/*" style="display:none">
     <button class="ghost" id="bcPhotoBtn" type="button" style="width:100%;margin-top:4px;color:var(--brand)">Klappt nicht? Barcode fotografieren</button>
     <div class="row" style="margin-top:10px">
-      <input type="text" id="eanIn" inputmode="numeric" placeholder="Barcode-Nummer eintippen">
+      <input type="search" id="eanIn" enterkeyhint="search" autocomplete="off" placeholder="Produktname oder Barcode-Nummer">
       <button id="eanBtn" style="flex:none">Suchen</button>
     </div>
     <div id="scanInfo" class="note" style="display:none"></div>
@@ -255,8 +255,8 @@ nav button{font-size:11px;padding:8px 2px 10px}
 <div class="sheet" id="sheet"><div class="in" id="sheetIn"></div></div>
 <div class="toast" id="toast"></div>
 
-<script src="data.js?v=4"></script>
-<script src="engine.js?v=4"></script>
-<script src="app.js?v=4"></script>
+<script src="data.js?v=5"></script>
+<script src="engine.js?v=5"></script>
+<script src="app.js?v=5"></script>
 </body>
 </html>
