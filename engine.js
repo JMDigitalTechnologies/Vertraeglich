@@ -2,10 +2,36 @@
 /* Verträglich – Bewertungslogik (ohne DOM, testbar)
    raw = {mode:"label"|"recipe"|"food", items:[{n, s?:klein, x?:{h,f,g,l} feste Werte, fix?:true}], spuren?, gf?, lf?} */
 
-const KEYS = ["h","f","g","l","t"];
-const CATS = {h:"Histamin", f:"Fructose", g:"Gluten", l:"Laktose", t:"Tomate"};
+/* Kategorien: grp "int" = Unverträglichkeit, "all" = Allergie (14 EU-Hauptallergene).
+   short = Kürzel für kompakte Anzeigen; any = jede Menge zählt (keine Abwertung kleiner Mengen); trace = Spurenhinweise zählen */
+const CAT_DEF = [
+  {k:"h", n:"Histamin",       short:"H",  grp:"int", desc:"Histaminreiches und Histaminliberatoren"},
+  {k:"f", n:"Fructose",       short:"F",  grp:"int", desc:"Fruktose, Fruchtzucker-Sirupe, Sorbit und Co."},
+  {k:"s", n:"Sorbit",         short:"So", grp:"int", desc:"Sorbit (E420) und sorbitreiches Obst"},
+  {k:"l", n:"Laktose",        short:"L",  grp:"int", desc:"Milchzucker in Milch, Molke, Sahne, Frischmilchprodukten"},
+  {k:"g", n:"Gluten",         short:"G",  grp:"int", desc:"Weizen, Dinkel, Roggen, Gerste und Co.", any:true, trace:true},
+  {k:"o", n:"FODMAP",         short:"FM", grp:"int", desc:"Für Reizdarm (Low-FODMAP): Fruktane, GOS, Laktose, Fruktose, Polyole"},
+  {k:"t", n:"Tomate",         short:"T",  grp:"int", desc:"Tomate in jeder Form – auch als Pulver, Mark, Soße oder Gewürz", any:true},
+  {k:"m", n:"Milcheiweiß",    short:"Mi", grp:"all", desc:"Kuhmilchallergie – auch laktosefreie Milchprodukte, Butter, Käse"},
+  {k:"e", n:"Ei",             short:"Ei", grp:"all", desc:"Hühnerei in jeder Form, auch Mayonnaise und Eiernudeln"},
+  {k:"y", n:"Soja",           short:"Sj", grp:"all", desc:"Soja, Tofu, Sojasauce, Sojalecithin"},
+  {k:"nu", n:"Schalenfrüchte", short:"Nu", grp:"all", desc:"Mandel, Haselnuss, Walnuss, Cashew, Pistazie und Co."},
+  {k:"p", n:"Erdnuss",        short:"Er", grp:"all", desc:"Erdnüsse und Erdnussöl/-mus"},
+  {k:"c", n:"Sellerie",       short:"Se", grp:"all", desc:"Knollen-, Stangensellerie, Selleriesalz"},
+  {k:"u", n:"Senf",           short:"Sf", grp:"all", desc:"Senf und Senfsaat"},
+  {k:"z", n:"Sesam",          short:"Ss", grp:"all", desc:"Sesam, Tahin"},
+  {k:"i", n:"Fisch",          short:"Fi", grp:"all", desc:"Alle Fischarten, Fischsauce"},
+  {k:"kr", n:"Krebstiere",     short:"Kr", grp:"all", desc:"Garnelen, Krabben, Hummer, Krebse"},
+  {k:"w", n:"Weichtiere",     short:"We", grp:"all", desc:"Muscheln, Tintenfisch, Schnecken"},
+  {k:"v", n:"Lupine",         short:"Lu", grp:"all", desc:"Lupinenmehl und -eiweiß"},
+  {k:"q", n:"Sulfite",        short:"Su", grp:"all", desc:"Schwefeldioxid/Sulfite (E220–E228), z. B. in Wein und Trockenobst"},
+];
+for (const d of CAT_DEF) if (d.grp === "all"){ d.any = true; d.trace = true; }
+const KEYS = CAT_DEF.map(d => d.k);
+const CATS = Object.fromEntries(CAT_DEF.map(d => [d.k, d.n]));
+const CAT = Object.fromEntries(CAT_DEF.map(d => [d.k, d]));
 /* Bei diesen Kategorien zählt jede Menge – keine Abwertung kleiner Mengen */
-const ANY_AMOUNT = {g:true, t:true};
+const ANY_AMOUNT = Object.fromEntries(CAT_DEF.filter(d => d.any).map(d => [d.k, true]));
 const LABEL = ["Verträglich","Vorsicht","Meiden"];
 /* Empfindlichkeit: [Schwelle rot, Schwelle gelb] auf den gewichteten Wert */
 const SENS_T = {1:[2,1.5], 2:[2,1], 3:[1,0.5]};
@@ -29,11 +55,17 @@ function rateText(name, ctx){
     if (!r.re.test(n)) continue;
     for (const c of KEYS){
       if (r[c] == null) continue;
-      if (r.o){ ov[c] = ov[c] == null ? r[c] : Math.min(ov[c], r[c]); if (r.why) ovWhy[c].push(r.why); }
+      if (r.ov){ ov[c] = ov[c] == null ? r[c] : Math.min(ov[c], r[c]); if (r.why) ovWhy[c].push(r.why); }
       else { res[c] = Math.max(res[c] ?? 0, r[c]); if (r[c] > 0 && r.why && !why[c].includes(r.why)) why[c].push(r.why); }
     }
   }
   for (const c of KEYS) if (ov[c] != null){ res[c] = ov[c]; why[c] = ovWhy[c]; }
+  /* FODMAP umfasst Laktose, Fruktose-Überschuss und Polyole */
+  if (ov.o == null){
+    for (const c of ["l","f","s"]){
+      if ((res[c] ?? 0) > (res.o ?? 0)){ res.o = res[c]; why.o = why.o.concat(why[c]); }
+    }
+  }
   if (ctx && ctx.gf && res.g != null){ res.g = 0; why.g = []; }
   if (ctx && ctx.lf && res.l != null){ res.l = 0; why.l = []; }
   return {res, why};
@@ -66,14 +98,16 @@ function evaluate(raw, profile){
     for (const c of KEYS) lvl[c] = mine === "ok" ? 0 : finalLevel(c, r[c], small, profile.sens[c]);
     return {name: it.n, key, r, lvl, why, small, pos: p, pct: pc, mine, fix: !!it.fix};
   });
-  if (raw.spuren && !ctx.gf){
+  if (raw.spuren){
     const t = rateText(raw.spuren, {});
-    if ((t.res.g ?? 0) >= 1){
-      const r = {}, lvl = {}; for (const c of KEYS) r[c] = c === "g" ? 1 : 0;
-      for (const c of KEYS) lvl[c] = finalLevel(c, r[c], false, profile.sens[c]);
-      const why = {}; for (const c of KEYS) why[c] = c === "g" ? "Spuren von glutenhaltigem Getreide" : "";
-      items.push({name: String(raw.spuren).trim(), key: "", r, lvl, why, small:false, pos:null, pct:null, mine:null, trace:true, fix:true});
+    const r = {}, lvl = {}, why = {};
+    let any = false;
+    for (const c of KEYS){
+      const hit = CAT[c].trace && (t.res[c] ?? 0) >= 1 && !(c === "g" && ctx.gf);
+      r[c] = hit ? 1 : 0; why[c] = hit ? "Spurenhinweis: " + CATS[c] : ""; if (hit) any = true;
+      lvl[c] = finalLevel(c, r[c], false, profile.sens[c]);
     }
+    if (any) items.push({name: String(raw.spuren).trim(), key: "", r, lvl, why, small:false, pos:null, pct:null, mine:null, trace:true, fix:true});
   }
   const cat = {};
   for (const c of act) cat[c] = items.reduce((m, i) => Math.max(m, i.lvl[c]), 0);
@@ -164,4 +198,14 @@ function analyze(entries, profile){
   return out;
 }
 
-if (typeof module !== "undefined") module.exports = {KEYS, CATS, LABEL, norm, ingKey, parsePct, rateText, finalLevel, evaluate, reasonText, splitIngredients, recipeItem, recipeRaw, analyze};
+/* Neue Kategorien für die Lebensmittel-Liste aus den Regeln ableiten (Spalten der Tabelle haben Vorrang) */
+if (typeof FOODS !== "undefined"){
+  const EXTRA = {"Zuckerfreier Kaugummi":{s:2, o:2}, "Tofu, Soja":{o:1}, "Sojamilch":{o:1}};
+  for (const f of FOODS){
+    const t = rateText(f.n, {});
+    for (const c of KEYS) if (f[c] === undefined) f[c] = t.res[c] ?? 0;
+    Object.assign(f, EXTRA[f.n] || {});
+  }
+}
+
+if (typeof module !== "undefined") module.exports = {CAT_DEF, CAT, KEYS, CATS, LABEL, norm, ingKey, parsePct, rateText, finalLevel, evaluate, reasonText, splitIngredients, recipeItem, recipeRaw, analyze};

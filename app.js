@@ -12,24 +12,26 @@ const fmtDate = ts => new Date(ts).toLocaleString("de-DE", {day:"2-digit", month
 const REACT = {good:"👍 Gut", unsure:"🤷 Weiß nicht", bad:"👎 Schlecht"};
 const SRC = {barcode:"Barcode", foto:"Foto", text:"Text", food:"Lebensmittel", recipe:"Rezept"};
 const MEALS = {alle:"Alle", fruehstueck:"Frühstück", mittag:"Mittagessen", abend:"Abendessen", snack:"Snack"};
-const SENS_TXT = {
-  h:{1:"Nur klare Problemzutaten zählen", 2:"Standard", 3:"Auch „Vorsicht“-Zutaten und kleine Mengen meiden"},
-  f:{1:"Nur klare Problemzutaten zählen", 2:"Standard", 3:"Auch „Vorsicht“-Zutaten und kleine Mengen meiden"},
-  l:{1:"Nur klare Problemzutaten zählen", 2:"Standard", 3:"Auch „Vorsicht“-Zutaten und kleine Mengen meiden"},
-  g:{1:"Glutensensitivität – Hafer und Spuren ok", 2:"Standard", 3:"Zöliakie – auch Spuren und Hafer meiden"},
-  t:{1:"Nur eindeutige Tomaten-Zutaten zählen", 2:"Standard – Gewürzmischungen als Vorsicht", 3:"Auch Gewürz- und Gemüsemischungen meiden (könnten Tomate enthalten)"}
-};
-const CAT_DESC = {h:"Histaminreiches und Histaminliberatoren", f:"Fruktose, Sorbit und andere Zuckeralkohole", g:"Weizen, Dinkel, Roggen, Gerste und Co.", l:"Milch, Molke, Sahne, frische Milchprodukte", t:"Tomate in jeder Form – auch als Pulver, Mark, Soße oder Gewürz"};
+const SENS_TXT_INT = {1:"Nur klare Problemzutaten zählen", 2:"Standard", 3:"Auch „Vorsicht“-Zutaten und kleine Mengen meiden"};
+const SENS_TXT_ALL = {1:"Nur enthaltene Zutaten – Spurenhinweise ignorieren", 2:"Standard – Spurenhinweise als Vorsicht", 3:"Streng – auch Spurenhinweise meiden"};
+const SENS_TXT = Object.fromEntries(CAT_DEF.map(d => [d.k, d.grp === "all" ? SENS_TXT_ALL : SENS_TXT_INT]));
+SENS_TXT.g = {1:"Glutensensitivität – Hafer und Spuren ok", 2:"Standard", 3:"Zöliakie – auch Spuren und Hafer meiden"};
+SENS_TXT.t = {1:"Nur eindeutige Tomaten-Zutaten zählen", 2:"Standard – Gewürzmischungen als Vorsicht", 3:"Auch Gewürz- und Gemüsemischungen meiden (könnten Tomate enthalten)"};
+const CAT_DESC = Object.fromEntries(CAT_DEF.map(d => [d.k, d.desc]));
+/* Open Food Facts Allergen-Tags → Kategorien */
+const OFF_ALLERGENS = {"en:gluten":"g", "en:milk":"m", "en:eggs":"e", "en:soybeans":"y", "en:nuts":"nu", "en:peanuts":"p", "en:celery":"c", "en:mustard":"u",
+  "en:sesame-seeds":"z", "en:fish":"i", "en:crustaceans":"kr", "en:molluscs":"w", "en:lupin":"v", "en:sulphur-dioxide-and-sulphites":"q"};
+const ALLERGEN_WORD = {g:"Gluten", m:"Milch", e:"Ei", y:"Soja", nu:"Schalenfrüchte", p:"Erdnüsse", c:"Sellerie", u:"Senf", z:"Sesam", i:"Fisch", kr:"Krebstiere", w:"Weichtiere", v:"Lupine", q:"Sulfite"};
 
 /* ---------- Zustand ---------- */
-let profile = {on:{h:true,f:true,g:true,l:false,t:false}, sens:{h:2,f:2,g:2,l:2,t:2}, mine:{}};
+let profile = {on:Object.fromEntries(KEYS.map(c => [c, ["h","f","g"].includes(c)])), sens:Object.fromEntries(KEYS.map(c => [c, 2])), mine:{}};
 let history = [];
 
 function load(){
   const p = LS.get("vt_profile");
   if (p){
     if (p.on) profile = {on:Object.assign(profile.on, p.on), sens:Object.assign(profile.sens, p.sens||{}), mine:p.mine||{}};
-    else { profile.on = {h:!!p.h, f:!!p.f, g:!!p.g, l:false, t:false}; profile.sens.g = p.gs ? 3 : 2; } // Version 1
+    else { Object.assign(profile.on, {h:!!p.h, f:!!p.f, g:!!p.g}); profile.sens.g = p.gs ? 3 : 2; } // Version 1
   }
   const h = LS.get("vt_history");
   if (h && Array.isArray(h.items)) history = h.items.map(migrateEntry).filter(Boolean);
@@ -364,11 +366,18 @@ async function lookup(code){
   }
   const {parts, spuren} = splitIngredients(txt);
   const items = parts.map(n => ({n}));
-  const probe = evaluate({mode:"label", items}, {on:{h:1,f:1,g:1,l:1,t:1}, sens:{}, mine:{}});
-  if (allergens.includes("en:gluten") && !gf && !probe.items.some(i => i.r.g >= 2)) items.push({n:"Allergenkennzeichnung: Gluten", fix:true});
-  if (!txt.trim() && allergens.includes("en:milk") && !lf) items.push({n:"Allergenkennzeichnung: Milch", fix:true, x:{h:0,f:0,g:0,l:1}, note:"Enthält Milch – Laktosegehalt unbekannt"});
+  const probe = evaluate({mode:"label", items}, {on:Object.fromEntries(KEYS.map(c => [c, true])), sens:{}, mine:{}});
+  /* Allergenkennzeichnung als zusätzliche Sicherheitsstufe, falls die Zutatenliste es nicht schon abdeckt */
+  for (const tag of allergens){
+    const c = OFF_ALLERGENS[tag]; if (!c || (c === "g" && gf)) continue;
+    if (probe.items.some(i => i.r[c] >= 2)) continue;
+    const x = Object.fromEntries(KEYS.map(k => [k, 0])); x[c] = 2;
+    if (c === "m" && !lf) x.l = 1;
+    items.push({n:"Allergenkennzeichnung: " + ALLERGEN_WORD[c], fix:true, x, note:"Laut Allergenkennzeichnung enthalten"});
+  }
+  const trWords = traces.map(t => OFF_ALLERGENS[t]).filter(Boolean).map(c => ALLERGEN_WORD[c]);
   let tr = spuren;
-  if (!tr && traces.includes("en:gluten")) tr = "Kann Spuren von Gluten enthalten";
+  if (trWords.length) tr = (tr ? tr + " " : "") + "Kann Spuren von " + trWords.join(", ") + " enthalten";
   info(txt.trim() ? "" : "Für dieses Produkt ist nur die Allergenkennzeichnung hinterlegt, keine vollständige Zutatenliste – Histamin und Fructose sind deshalb nicht bewertbar.");
   const e = addEntry(name, {mode:"label", items, spuren: tr, gf, lf}, "barcode", code);
   currentResult = e; showResult(e, $("#result")); renderDiary();
@@ -395,7 +404,7 @@ $("#txtBtn").addEventListener("click", () => {
 /* ---------- Lebensmittel ---------- */
 let foodCat = "Alle";
 function dotsHtml(r, cats){
-  return `<div class="dots">${cats.map(c => `<span class="c${r[c]}" title="${CATS[c]}: ${LABEL[r[c]]}">${CATS[c][0]}</span>`).join("")}</div>`;
+  return `<div class="dots">${cats.map(c => `<span class="c${r[c]}" title="${CATS[c]}: ${LABEL[r[c]]}">${CAT[c].short}</span>`).join("")}</div>`;
 }
 function foodLevels(f){ const lv = {}; for (const c of KEYS) lv[c] = finalLevel(c, f[c], false, profile.sens[c]); const k = ingKey(f.n); if (profile.mine[k] === "ok") KEYS.forEach(c => lv[c] = 0); return lv; }
 function renderCats(){
@@ -432,7 +441,7 @@ function openFoodSheet(f){
   inn.onclick = ev => {
     const fr = ev.target.closest("[data-fr]");
     if (fr){
-      const e = addEntry(f.n, {mode:"food", items:[{n:f.n, x:{h:f.h,f:f.f,g:f.g,l:f.l,t:f.t}, note:f.note}]}, "food");
+      const e = addEntry(f.n, {mode:"food", items:[{n:f.n, x:Object.fromEntries(KEYS.map(c => [c, f[c] || 0])), note:f.note}]}, "food");
       e.reaction = fr.dataset.fr; saveHistory(); renderDiary(); closeSheet(); toast("Im Tagebuch gespeichert: " + REACT[e.reaction]); return;
     }
     if (ev.target.closest("#shClose")){ closeSheet(); return; }
@@ -485,7 +494,8 @@ function renderDiary(){
       <p class="small muted" style="margin:8px 0 0">So geht’s: Produkt prüfen oder Rezept wählen → nach dem Essen „Wie hast du es vertragen?“ antippen.</p>`;
   } else {
     h += `<p class="small muted" style="margin:0 0 6px">Ausgewertet: ${a.n} Einträge (${a.bad} schlecht vertragen)${a.unsure ? `, ${a.unsure} × „weiß nicht“ nicht berücksichtigt` : ""}.</p>`;
-    for (const c of KEYS){
+    const shownCats = KEYS.filter(c => profile.on[c] || ["strong","possible"].includes(a.cats[c].verdict) || ["h","f","l","g"].includes(c));
+    for (const c of shownCats){
       const x = a.cats[c], [vt, vc] = VERD[x.verdict];
       const pE = Math.round(x.rE * 100), pU = Math.round(x.rU * 100);
       h += `<div class="acat"><div class="hd"><b>${CATS[c]}</b><span class="pill ${vc}">${vt}</span></div>`;

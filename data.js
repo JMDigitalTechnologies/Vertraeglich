@@ -1,7 +1,8 @@
 "use strict";
 /* Verträglich – Daten: Lebensmittel, Zutaten-Regeln, Rezepte
    Bewertung: 0 = verträglich, 1 = Vorsicht, 2 = meiden
-   Kategorien: h = Histamin, f = Fructose, g = Gluten, l = Laktose, t = Tomate */
+   Kategorien: siehe CAT_DEF in engine.js (h Histamin, f Fructose, s Sorbit, l Laktose, g Gluten, o FODMAP, t Tomate,
+   m Milcheiweiß, e Ei, y Soja, nu Schalenfrüchte, p Erdnuss, c Sellerie, u Senf, z Sesam, i Fisch, kr Krebstiere, w Weichtiere, v Lupine, q Sulfite) */
 
 /* ---------- Lebensmittel: Name|Kategorie|h|f|g|l|Hinweis ---------- */
 const FOOD_RAW = `
@@ -164,18 +165,23 @@ const FOODS = FOOD_RAW.trim().split("\n").map(l => {
 });
 
 /* ---------- Regeln für Zutatenlisten (auf normalisierten Text: klein, ä→ae, ö→oe, ü→ue, ß→ss) ----------
-   o:true = Ausnahme: überschreibt die Kategorie für diese Zutat (kleinster Ausnahme-Wert gewinnt) */
+   ov:true = Ausnahme: überschreibt die Kategorie für diese Zutat (kleinster Ausnahme-Wert gewinnt) */
 const RULES = [
   /* --- Ausnahmen --- */
-  {re:/glu[ck]osesirup|glu[ck]ose-fru[ck]tose|dextrose|maltodextrin|glu[ck]ose\b|glucose syrup/, g:0, o:true},
-  {re:/weizenstaerke|wheat starch/, g:1, o:true, why:"Weizenstärke – kann glutenfrei aufbereitet sein, Kennzeichnung prüfen"},
-  {re:/buchweizen|buckwheat/, g:0, o:true},
-  {re:/glutenfrei|gluten-free|gluten free|ohne gluten/, g:0, o:true},
-  {re:/laktosefrei|lactose-free|lactose free|ohne laktose/, l:0, o:true},
-  {re:/zitronensaeure|citronensaeure|citric acid|e ?330(?!\d)|ascorbinsaeure|ascorbic|weinsaeure|milchsaeure|lactic acid|e ?270(?!\d)/, h:0, l:0, o:true},
-  {re:/frischkaese|huettenkaese|mozzarella|mascarpone|ricotta|cream cheese/, h:0, o:true},
-  {re:/kakaobutter|cocoa butter/, h:0, o:true},
-  {re:/milchreis|milchsaeurebakterien|milchsaeure/, l:0, o:true},
+  {re:/glu[ck]osesirup|dextrose|maltodextrin|glu[ck]ose\b|glucose syrup/, g:0, ov:true},
+  {re:/glu[ck]osesirup(?!.*fru[ck]tose)|dextrose|maltodextrin|glucose syrup/, o:0, ov:true},
+  {re:/weizenstaerke|wheat starch/, g:1, o:1, ov:true, why:"Weizenstärke – kann glutenfrei aufbereitet sein, Kennzeichnung prüfen"},
+  {re:/buchweizen|buckwheat/, g:0, ov:true},
+  {re:/buchweizen|buckwheat/, o:0, ov:true},
+  {re:/glutenfrei|gluten-free|gluten free|ohne gluten/, g:0, ov:true},
+  {re:/laktosefrei|lactose-free|lactose free|ohne laktose/, l:0, ov:true},
+  {re:/zitronensaeure|citronensaeure|citric acid|e ?330(?!\d)|ascorbinsaeure|ascorbic|weinsaeure|milchsaeure|lactic acid|e ?270(?!\d)/, h:0, l:0, ov:true},
+  {re:/frischkaese|huettenkaese|mozzarella|mascarpone|ricotta|cream cheese/, h:0, ov:true},
+  {re:/kakaobutter|cocoa butter/, h:0, ov:true},
+  {re:/milchreis|milchsaeurebakterien|milchsaeure/, l:0, ov:true},
+  {re:/milchsaeure|lactic acid|milchsaeurebakterien|kakaobutter|cocoa butter|erdnussbutter|sheabutter|kokosmilch|kokosnussmilch|hafermilch|mandelmilch|sojamilch|reismilch|milchreis|e ?270(?!\d)|e ?32[5-7](?!\d)/, m:0, ov:true},
+  {re:/kokosnuss|kokos|muskatnuss|muskat|(^|[^a-z])erdnuss/, nu:0, ov:true},
+  {re:/tintenfisch/, i:0, ov:true},
 
   /* --- Gluten --- */
   {re:/weizen|dinkel|roggen|gerste|emmer|einkorn|kamut|khorasan|gruenkern|triticale|bulgur|couscous|seitan|griess|paniermehl|semmelbroesel|wheat|barley|(^|[^a-z])rye([^a-z]|$)|spelt|durum/, g:2, why:"Glutenhaltiges Getreide"},
@@ -210,6 +216,66 @@ const RULES = [
   {re:/apfel|aepfel|birne|mango|pflaume|dattel|feige|rosine|trockenobst|trockenfruecht|(^|[^a-z])apples?([^a-z]|$)|(^|[^a-z])pears?([^a-z]|$)|raisin|(^|[^a-z])dates?([^a-z]|$)/, f:2, why:"Fruktosereiches Obst"},
   {re:/fruchtsaft|saftkonzentrat|fruchtpulver|fruchtzubereitung|fruit juice|juice concentrate/, f:1, why:"Fruchtsaft/-zubereitung – oft fruktosereich"},
   {re:/zwiebel|knoblauch|lauch|onion|garlic/, f:1, why:"Fruktane – kleine Mengen oft ok"},
+
+  /* --- Sorbit --- */
+  {re:/sorbit|e ?420(?!\d)/, s:2, why:"Sorbit (E420)"},
+  {re:/pflaume|zwetschge|kirsche|kirschen|aprikose|marille|pfirsich|nektarine|(^|[^a-z])apfel|aepfel|birne|trockenpflaume|dattel|(^|[^a-z])prunes?/, s:2, why:"Sorbitreiches Obst"},
+  {re:/kaugummi|chewing gum|zuckerfrei|ohne zucker|sugar free/, s:1, o:1, why:"Zuckerfrei – oft mit Zuckeraustauschstoffen"},
+
+  /* --- FODMAP (zusätzlich zu Laktose, Fruktose, Sorbit, die automatisch einfließen) --- */
+  {re:/weizen|roggen|gerste|wheat|barley|(^|[^a-z])rye([^a-z]|$)|bulgur|couscous|griess|paniermehl|semmelbroesel/, o:2, why:"Fruktane aus Weizen, Roggen oder Gerste"},
+  {re:/dinkel|spelt/, o:1, why:"Dinkel – weniger Fruktane als Weizen"},
+  {re:/zwiebel|knoblauch|schalotte|onion|garlic|shallot/, o:2, why:"Fruktane aus Zwiebel/Knoblauch"},
+  {re:/lauch|porree|leek/, o:1, why:"Lauch – Fruktane"},
+  {re:/inulin|oligofru[ck]tose|fructooligo|chicoree|chicory|topinambur/, o:2, why:"Fruktane (Inulin, Oligofruktose)"},
+  {re:/bohne|kichererbse|linse|erbse(?!n?protein)|sojabohne|(^|[^a-z])beans?([^a-z]|$)|chickpea|lentil/, o:2, why:"Hülsenfrüchte – Galakto-Oligosaccharide"},
+  {re:/pilz|champignon|mushroom|blumenkohl|cauliflower|spargel|asparagus/, o:2, why:"Polyole (Mannit)"},
+  {re:/avocado|suesskartoffel|sellerie|celery/, o:1, why:"Polyole in größeren Mengen"},
+  {re:/cashew|pistazie|pistachio/, o:2, why:"Cashew/Pistazie – GOS und Fruktane"},
+  {re:/wassermelone|mango|(^|[^a-z])apfel|aepfel|birne|kirsche|pflaume|nektarine|pfirsich|trockenobst|rosine|dattel|feige/, o:2, why:"Fruktose- oder polyolreiches Obst"},
+  {re:/mannit|xylit|maltit|isomalt|lactit|e ?42[01](?!\d)|e ?96[5-7](?!\d)|e ?953(?!\d)/, o:2, why:"Polyole (Zuckeraustauschstoffe)"},
+
+  /* --- Milcheiweiß (Kuhmilchallergie) --- */
+  {re:/(^|[^a-z])(voll|mager|frisch|kuh|roh|teilentrahmte |fettarme |haltbare |laktosefreie )?milch|(^|[^a-z])milk|milchpulver|molke|whey|kondensmilch|buttermilch|sahne|(^|[^a-z])rahm|schmand|creme fraiche|(^|[^a-z])cream([^a-z]|$)|joghurt|jogurt|yogh?urt|kefir|quark|kaese|cheese|mozzarella|mascarpone|ricotta|parmesan|feta|(^|[^a-z])butter|butterreinfett|butterschmalz|ghee|kasein|casein|laktose|lactose|milchzucker|milcheiweiss|milchprotein|lactoglobulin|lactalbumin/, m:2, why:"Enthält Milch(-eiweiß)"},
+
+  /* --- Ei --- */
+  {re:/(^|[^a-z])ei(er|ern)?([^a-z]|$)|vollei|eigelb|eidotter|eiklar|eiweisspulver|huehnerei|eipulver|trockenei|flüssigei|fluessigei|eiernudel|mayonnaise|mayo\b|(^|[^a-z])eggs?([^a-z]|$)|egg yolk|egg white|albumin|lysozym|e ?1105(?!\d)/, e:2, why:"Enthält Ei"},
+
+  /* --- Soja --- */
+  {re:/soja|(^|[^a-z])soy|tofu|tempeh|miso|edamame|tamari|shoyu/, y:2, why:"Enthält Soja"},
+  {re:/lecithin|e ?322(?!\d)/, y:1, why:"Lecithin – oft aus Soja, Herkunft prüfen"},
+
+  /* --- Schalenfrüchte --- */
+  {re:/mandel|haselnuss|haselnuesse|walnuss|walnuesse|cashew|pekan|paranuss|paranuesse|pistazie|macadamia|queenslandnuss|(^|[^a-z])(nuss|nuesse|nussmus|nusspaste)([^a-z]|$)|nougat|nugat|marzipan|krokant|praline|tree nuts?|hazelnut|almond|walnut|pecan|pistachio|brazil nut/, nu:2, why:"Enthält Schalenfrüchte (Nüsse)"},
+
+  /* --- Erdnuss --- */
+  {re:/erdnuss|erdnuesse|peanut|arachis/, p:2, why:"Enthält Erdnuss"},
+
+  /* --- Sellerie --- */
+  {re:/sellerie|celery|celeriac/, c:2, why:"Enthält Sellerie"},
+
+  /* --- Senf --- */
+  {re:/senf|mustard/, u:2, why:"Enthält Senf"},
+
+  /* --- Sesam --- */
+  {re:/sesam|tahin|tahini|sesame/, z:2, why:"Enthält Sesam"},
+
+  /* --- Fisch --- */
+  {re:/fisch|lachs|thunfisch|kabeljau|dorsch|seelachs|forelle|hering|makrele|sardine|sardelle|anchovi|scholle|zander|pangasius|tilapia|rotbarsch|(^|[^a-z])fish|salmon|(^|[^a-z])tuna|(^|[^a-z])cod([^a-z]|$)|anchov|fischsauce|fish sauce/, i:2, why:"Enthält Fisch"},
+
+  /* --- Krebstiere --- */
+  {re:/garnele|shrimp|prawn|krabbe|(^|[^a-z])krebs|flusskrebs|hummer|languste|langustine|scampi|crustacea|crab|lobster|krebstier/, kr:2, why:"Enthält Krebstiere"},
+
+  /* --- Weichtiere --- */
+  {re:/muschel|tintenfisch|kalmar|calamar|oktopus|krake|schnecke|auster|mollus|weichtier|squid|mussel|oyster|clam|scallop/, w:2, why:"Enthält Weichtiere"},
+  {re:/meeresfrue|seafood/, kr:1, w:1, why:"Meeresfrüchte – Krebs- oder Weichtiere möglich"},
+
+  /* --- Lupine --- */
+  {re:/lupin/, v:2, why:"Enthält Lupine"},
+
+  /* --- Sulfite --- */
+  {re:/sulfit|sulphite|sulfite|schwefeldioxid|disulfit|geschwefelt|e ?22[0-8](?!\d)/, q:2, why:"Enthält Sulfite"},
+  {re:/(^|[^a-z])(rot|weiss|dessert|koch)?wein(?!stein|saeure)|(^|[^a-z])wine|sekt|trockenobst|trockenfruecht|rosine/, q:1, why:"Enthält häufig Sulfite"},
 
   /* --- Tomate (in jeder Form, auch als Gewürz) --- */
   {re:/tomat|ketchup|catsup|passata|pizzasauce|pizzasosse|pizzawuerze|bolognese|arrabbiata|napoli|gazpacho|(^|[^a-z])sugo|chutney/, t:2, why:"Tomate (auch als Pulver, Mark, Soße oder Gewürz)"},
@@ -249,7 +315,7 @@ const RULES = [
   {re:/sulfit|sulphite|sulfite|schwefeldioxid|disulfit|e ?22[0-8](?!\d)/, h:1, why:"Sulfit (Konservierungsstoff)"},
   {re:/tartrazin|azorubin|cochenillerot|gelborange|allurarot|e ?1(02|10|22|24|29)(?!\d)/, h:1, why:"Azofarbstoff"},
   {re:/eiklar|huehnereiweiss|eiweisspulver|egg white/, h:1, why:"Eiklar – Histaminliberator"},
-  {re:/(^|[^a-z])eier?([^a-z]|$)|vollei|huehnerei(?!weiss)|(^|[^a-z])eggs?([^a-z]|$)/, h:1, why:"Ei – Eiklar ist ein Histaminliberator, durchgegart meist ok"},
+  {re:/(^|[^a-z])ei(er|ern)?([^a-z]|$)|vollei|huehnerei(?!weiss)|(^|[^a-z])eggs?([^a-z]|$)/, h:1, why:"Ei – Eiklar ist ein Histaminliberator, durchgegart meist ok"},
   {re:/weizenkeim|wheat germ/, h:2, why:"Weizenkeime – histaminreich"},
   {re:/bohne|linse|kichererbse|(^|[^a-z])beans?([^a-z]|$)|lentil|chickpea/, h:1, f:1, why:"Hülsenfrüchte"},
   {re:/chili|curry|cayenne/, h:1, why:"Scharfe Gewürze"},
