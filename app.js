@@ -1,6 +1,7 @@
 "use strict";
 /* Verträglich – Oberfläche */
 const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const LS = {
   get(k){ try{ return JSON.parse(localStorage.getItem(k)); }catch(e){ return null; } },
@@ -9,7 +10,9 @@ const LS = {
 let toastT;
 function toast(m){ const t = $("#toast"); t.textContent = m; t.classList.add("on"); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove("on"), 2600); }
 const fmtDate = ts => new Date(ts).toLocaleString("de-DE", {day:"2-digit", month:"2-digit", year:"2-digit", hour:"2-digit", minute:"2-digit"});
-const REACT = {good:"👍 Gut", unsure:"🤷 Weiß nicht", bad:"👎 Schlecht"};
+const fmtTime = ts => new Date(ts).toLocaleTimeString("de-DE", {hour:"2-digit", minute:"2-digit"});
+const REACT = {good:"Gut", unsure:"Weiß nicht", bad:"Schlecht"};
+const REACT_DOT = {good:"var(--ok)", unsure:"var(--unk)", bad:"var(--bad)"};
 const SRC = {barcode:"Barcode", foto:"Foto", text:"Text", food:"Lebensmittel", recipe:"Rezept"};
 const MEALS = {alle:"Alle", fruehstueck:"Frühstück", mittag:"Mittagessen", abend:"Abendessen", snack:"Snack"};
 const SENS_TXT_INT = {1:"Nur klare Problemzutaten zählen", 2:"Standard", 3:"Auch „Vorsicht“-Zutaten und kleine Mengen meiden"};
@@ -17,18 +20,52 @@ const SENS_TXT_ALL = {1:"Nur enthaltene Zutaten – Spurenhinweise ignorieren", 
 const SENS_TXT = Object.fromEntries(CAT_DEF.map(d => [d.k, d.grp === "all" ? SENS_TXT_ALL : SENS_TXT_INT]));
 SENS_TXT.g = {1:"Glutensensitivität – Hafer und Spuren ok", 2:"Standard", 3:"Zöliakie – auch Spuren und Hafer meiden"};
 SENS_TXT.t = {1:"Nur eindeutige Tomaten-Zutaten zählen", 2:"Standard – Gewürzmischungen als Vorsicht", 3:"Auch Gewürz- und Gemüsemischungen meiden (könnten Tomate enthalten)"};
+const SENS_LBL = ["leicht","mittel","stark"];
 const CAT_DESC = Object.fromEntries(CAT_DEF.map(d => [d.k, d.desc]));
+const GROUPS = [
+  {g:"int", title:"Unverträglichkeiten", hint:"Stoffe, die dein Körper schlecht verarbeitet."},
+  {g:"all", title:"Allergien (14 Hauptallergene)", hint:"Die kennzeichnungspflichtigen Allergene der EU – Spurenhinweise werden mitgeprüft."}
+];
 /* Open Food Facts Allergen-Tags → Kategorien */
 const OFF_ALLERGENS = {"en:gluten":"g", "en:milk":"m", "en:eggs":"e", "en:soybeans":"y", "en:nuts":"nu", "en:peanuts":"p", "en:celery":"c", "en:mustard":"u",
   "en:sesame-seeds":"z", "en:fish":"i", "en:crustaceans":"kr", "en:molluscs":"w", "en:lupin":"v", "en:sulphur-dioxide-and-sulphites":"q"};
 const ALLERGEN_WORD = {g:"Gluten", m:"Milch", e:"Ei", y:"Soja", nu:"Schalenfrüchte", p:"Erdnüsse", c:"Sellerie", u:"Senf", z:"Sesam", i:"Fisch", kr:"Krebstiere", w:"Weichtiere", v:"Lupine", q:"Sulfite"};
 
+/* ---------- UI-Bausteine ---------- */
+const SYM = ["✓","!","✕"];
+const SVG = {
+  chev:'<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>',
+  info:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg>',
+  warn:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4 2.5 20h19z"/><path d="M12 10v4M12 17h.01"/></svg>',
+  x:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>',
+  check:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5 9-10"/></svg>',
+  book:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h3"/></svg>',
+  search:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>',
+  bowl:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 13h16a8 8 0 0 1-16 0z"/><path d="M9 9c0-2 2-2 2-4M13 9c0-2 2-2 2-4"/></svg>',
+  scan:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7V5a1 1 0 0 1 1-1h2M17 4h2a1 1 0 0 1 1 1v2M20 17v2a1 1 0 0 1-1 1h-2M7 20H5a1 1 0 0 1-1-1v-2"/><path d="M7 8v8M10 8v8M13 8v8M16 8v8"/></svg>',
+  user:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>',
+  chart:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19V5M4 19h16"/><path d="M8 15l3-4 3 2 5-6"/></svg>'
+};
+const st = (lv, cls) => `<span class="st lv${lv}${cls ? " " + cls : ""}" aria-hidden="true">${SYM[lv]}</span>`;
+const badge = (c, lv) => `<span class="badge lv${lv}" title="${esc(CATS[c])}: ${LABEL[lv]}"><span aria-hidden="true">${esc(CAT[c].short)}</span><span class="sr-only">${esc(CATS[c])}: ${LABEL[lv]}</span></span>`;
+const chip = (lv, txt, srTxt) => `<span class="chip lv${lv}"><span class="sym" aria-hidden="true">${SYM[lv]}</span>${txt}${srTxt ? `<span class="sr-only">${srTxt}</span>` : ""}</span>`;
+const loadingHtml = t => `<div class="loading"><span class="spin" aria-hidden="true"></span><span>${t}</span></div>`;
+const fbHtml = (title, text, actions, icon) => `<div class="fb-title">${icon || SVG.info}<span>${title}</span></div>${text ? `<p>${text}</p>` : ""}${actions ? `<div class="actions">${actions}</div>` : ""}`;
+const actBtn = (go, label, primary) => `<button type="button" class="btn btn-sm ${primary ? "btn-primary" : "btn-secondary"}" data-go="${go}">${label}</button>`;
+function setFb(el, html, kind){
+  if (!html){ el.hidden = true; el.innerHTML = ""; return; }
+  el.className = "feedback" + (kind ? " fb-" + kind : "");
+  el.innerHTML = html; el.hidden = false;
+}
+
 /* ---------- Zustand ---------- */
 let profile = {on:Object.fromEntries(KEYS.map(c => [c, ["h","f","g"].includes(c)])), sens:Object.fromEntries(KEYS.map(c => [c, 2])), mine:{}};
 let history = [];
+let hasStoredProfile = false;
 
 function load(){
   const p = LS.get("vt_profile");
+  hasStoredProfile = !!p;
   if (p){
     if (p.on) profile = {on:Object.assign(profile.on, p.on), sens:Object.assign(profile.sens, p.sens||{}), mine:p.mine||{}};
     else { Object.assign(profile.on, {h:!!p.h, f:!!p.f, g:!!p.g}); profile.sens.g = p.gs ? 3 : 2; } // Version 1
@@ -44,7 +81,7 @@ function migrateEntry(e){
   return {id:e.id, ts:e.ts, name:e.name, src:e.src, code:e.code||null, reaction:null,
     raw:{mode:"label", items:e.items.filter(i => !i.trace).map(i => /^Allergenkennzeichnung/.test(i.name) ? {n:i.name, fix:true} : {n:i.name}), spuren: tr ? tr.name : null}};
 }
-function saveProfile(){ LS.set("vt_profile", profile); }
+function saveProfile(){ LS.set("vt_profile", profile); hasStoredProfile = true; }
 function saveHistory(){ history = history.slice(0, 300); LS.set("vt_history", {items: history}); }
 const activeCats = () => KEYS.filter(c => profile.on[c]);
 
@@ -53,64 +90,145 @@ function addEntry(name, raw, src, code){
   history.unshift(e); saveHistory();
   return e;
 }
-function refreshAll(){ renderSub(); renderFoods(); renderRecipes(); renderDiary(); renderProfile(); if (currentResult) showResult(currentResult, $("#result")); }
+function refreshAll(){
+  renderSub(); renderFoods(); renderRecipes(); renderDiary(); renderProfile(); renderRecent();
+  if (sheetCtx && sheetCtx.type === "entry" && $("#shRes")){ const e = history.find(x => x.id === sheetCtx.id); if (e) showResult(e, $("#shRes")); }
+}
 
 /* ---------- Ergebnis-Anzeige ---------- */
-let currentResult = null;
-function reactHtml(e){
-  return `<div class="react">${Object.keys(REACT).map(k => `<button type="button" class="${k}${e.reaction===k?" on":""}" data-react="${k}" data-id="${e.id}">${REACT[k]}</button>`).join("")}</div>`;
+function reactHtml(e, attr){
+  attr = attr || (k => `data-react="${k}" data-id="${e.id}"`);
+  return `<div class="seg react" role="group" aria-label="Wie hast du es vertragen?">${Object.keys(REACT).map(k =>
+    `<button type="button" class="${k}" aria-pressed="${e && e.reaction === k}" ${attr(k)}><span class="dot" style="background:${REACT_DOT[k]}" aria-hidden="true"></span>${REACT[k]}</button>`).join("")}</div>`;
+}
+function mkButtons(key, name, cur){
+  return `<div class="seg mk" role="group" aria-label="Deine Erfahrung mit ${esc(name)}">${["ok","bad"].map(v =>
+    `<button type="button" class="${v}" aria-pressed="${cur === v}" data-mk="${v}" data-key="${esc(key)}" data-name="${esc(name)}">${v === "ok" ? "✓ vertrage ich" : "✕ vertrage ich nicht"}</button>`).join("")}</div>`;
 }
 function mkHtml(i){
   if (!i.key || i.fix) return "";
-  return `<div class="mk"><button type="button" class="ok${i.mine==="ok"?" on":""}" data-mk="ok" data-key="${esc(i.key)}" data-name="${esc(i.name)}">vertrage ich</button><button type="button" class="bad${i.mine==="bad"?" on":""}" data-mk="bad" data-key="${esc(i.key)}" data-name="${esc(i.name)}">vertrage ich nicht</button></div>`;
+  return mkButtons(i.key, i.name, i.mine);
 }
 function metaTxt(i){
   const m = [];
   if (i.pos) m.push("Position " + i.pos);
   if (i.pct != null) m.push(String(i.pct).replace(".", ",") + " %");
   if (i.small) m.push("geringe Menge – zählt weniger" );
-  return m.length ? `<div class="meta">${m.join(" · ")}</div>` : "";
+  return m.length ? `<div class="ing-meta">${m.join(" · ")}</div>` : "";
 }
+const worstOf = (i, cats) => Math.max(0, ...cats.map(c => i.lvl[c]));
 function showResult(e, el){
   const ev = evaluate(e.raw, profile), cats = ev.cats;
   const relevant = i => i.mine === "bad" || i.mine === "ok" || cats.some(c => i.lvl[c] > 0 || i.r[c] > 0);
-  const flagged = ev.items.filter(relevant).sort((a,b) => Math.max(0,...cats.map(c=>b.lvl[c])) - Math.max(0,...cats.map(c=>a.lvl[c])));
-  const chips = cats.map(c => `<span class="chip"><i class="c${ev.cat[c]}"></i>${CATS[c]}: ${LABEL[ev.cat[c]]}</span>`).join("") +
-    (ev.personal ? `<span class="chip"><i class="c2"></i>Persönlich: Meiden</span>` : "");
+  const flagged = ev.items.filter(relevant).sort((a,b) => worstOf(b, cats) - worstOf(a, cats));
+  const sortedCats = cats.slice().sort((a,b) => ev.cat[b] - ev.cat[a]);
+  const chips = sortedCats.map(c => chip(ev.cat[c], esc(CATS[c]), ": " + LABEL[ev.cat[c]])).join("") +
+    (ev.personal ? chip(2, "Persönlich", ": Meiden") : "");
   const ingHtml = i => {
     let lines = cats.filter(c => i.r[c] > 0).map(c =>
-      `<div class="why"><span class="chip" style="padding:2px 8px;font-size:12px"><i class="c${i.lvl[c]}"></i>${CATS[c]}</span> ${esc(i.why[c] || LABEL[i.r[c]])}</div>`).join("");
-    if (i.mine === "bad") lines += `<div class="why"><span class="chip" style="padding:2px 8px;font-size:12px"><i class="c2"></i>Persönlich</span> Von dir als „vertrage ich nicht“ markiert</div>`;
-    if (i.mine === "ok") lines += `<div class="why"><span class="chip" style="padding:2px 8px;font-size:12px"><i class="c0"></i>Persönlich</span> Von dir als „vertrage ich“ markiert</div>`;
-    return `<div class="ing"><b>${esc(i.name)}</b>${metaTxt(i)}${lines}${mkHtml(i)}</div>`;
+      `<li>${badge(c, i.lvl[c])}<span><b>${esc(CATS[c])}</b> – ${esc(i.why[c] || LABEL[i.r[c]])}</span></li>`).join("");
+    if (i.mine === "bad") lines += `<li><span class="badge lv2">Ich</span><span>Von dir als „vertrage ich nicht“ markiert</span></li>`;
+    if (i.mine === "ok") lines += `<li><span class="badge lv0">Ich</span><span>Von dir als „vertrage ich“ markiert</span></li>`;
+    return `<li class="ing"><div class="ing-name">${esc(i.name)}</div>${metaTxt(i)}${lines ? `<ul class="why">${lines}</ul>` : ""}${mkHtml(i)}</li>`;
   };
+  const noProfile = !cats.length && !ev.personal;
   el.innerHTML = `
-  <div class="card">
-    <div class="verdict v${ev.total}"><div class="dot">${["✓","!","✕"][ev.total]}</div><div><h3>${LABEL[ev.total]}</h3><p>${esc(reasonText(ev))}</p></div></div>
-    <div class="chips">${chips}</div>
-    <p class="small muted" style="margin:12px 0 0"><b style="color:var(--ink)">${esc(e.name)}</b> · ${SRC[e.src]||""} · ${fmtDate(e.ts)}</p>
-    <p class="small" style="margin:14px 0 0;font-weight:600">Schon gegessen? Wie hast du es vertragen?</p>
-    ${reactHtml(e)}
+  <div class="verdict v${ev.total}">
+    <div class="vi" aria-hidden="true">${SYM[ev.total]}</div>
+    <div><p class="vl">${noProfile ? "Kein Profil aktiv" : LABEL[ev.total]}</p><p class="vn">${esc(e.name)}</p></div>
   </div>
-  ${flagged.length ? `<div class="card"><h2>Auffällige Zutaten</h2>${flagged.map(ingHtml).join("")}</div>` : ""}
-  <div class="card"><details><summary>Alle ${ev.items.length} Zutaten anzeigen</summary><div style="margin-top:8px">${ev.items.map(i =>
-    `<div class="ing">${esc(i.name)} ${cats.map(c => `<i class="c${i.lvl[c]}" style="display:inline-block;width:9px;height:9px;border-radius:50%;margin-left:3px" title="${CATS[c]}"></i>`).join("")}${metaTxt(i)}${mkHtml(i)}</div>`).join("")}</div></details>
-  <p class="small muted" style="margin:10px 0 0">Zutaten ohne Treffer in der Regelliste gelten als unproblematisch. Zutaten stehen nach Menge sortiert – weiter hinten und unter 2 % zählen sie weniger (außer bei Gluten und Tomate).</p></div>`;
-  el.onclick = ev2 => handleActions(ev2, () => showResult(e, el));
+  <p class="reason">${esc(reasonText(ev))}</p>
+  ${noProfile ? `<button type="button" class="btn btn-secondary btn-block" data-go="prof">Profil einrichten</button>` : `<div class="chips" aria-label="Bewertung je Kategorie">${chips}</div>`}
+  ${flagged.length ? `<section class="block"><h3 class="block-title">Auffällige Zutaten <span class="n">(${flagged.length})</span></h3><ul class="list">${flagged.map(ingHtml).join("")}</ul></section>` : ""}
+  <section class="block">
+    <h3 class="block-title">Schon gegessen? Wie hast du es vertragen?</h3>
+    ${reactHtml(e)}
+    <p class="hint" style="margin-top:6px">Deine Bewertung landet im Tagebuch und hilft der Analyse.</p>
+  </section>
+  <details class="block disc"><summary>${SVG.chev}Alle ${ev.items.length} Zutaten anzeigen</summary><ul class="list">${ev.items.map(i => {
+    const bad = cats.filter(c => i.lvl[c] > 0);
+    return `<li class="ing"><div class="ing-line"><span class="ing-name">${esc(i.name)}</span>${bad.length ? `<span class="badges">${bad.map(c => badge(c, i.lvl[c])).join("")}</span>` : ""}</div>${metaTxt(i)}${mkHtml(i)}</li>`;
+  }).join("")}</ul></details>
+  <p class="fine">${esc(SRC[e.src] || "")} · ${fmtDate(e.ts)}${e.code ? " · " + esc(e.code) : ""}<br>Zutaten ohne Treffer in der Regelliste gelten als unproblematisch. Zutaten stehen nach Menge sortiert – weiter hinten und unter 2 % zählen sie weniger (außer bei Gluten, Tomate und Allergenen).</p>`;
+  el.onclick = ev2 => {
+    const go = ev2.target.closest("[data-go]");
+    if (go){ closeSheet(); goView(go.dataset.go); return; }
+    handleActions(ev2, () => showResult(e, el));
+  };
 }
 function handleActions(ev, rerender){
   const b = ev.target.closest("[data-react],[data-mk]"); if (!b) return;
+  const sel = b.dataset.react ? `[data-react="${b.dataset.react}"][data-id="${b.dataset.id}"]` : `[data-mk="${b.dataset.mk}"][data-key="${CSS.escape(b.dataset.key)}"]`;
+  const scope = b.closest("#sheetIn, .view");
   if (b.dataset.react){
     const e = history.find(x => x.id === b.dataset.id); if (!e) return;
     e.reaction = e.reaction === b.dataset.react ? null : b.dataset.react;
-    saveHistory(); if (e.reaction) toast("Im Tagebuch gespeichert: " + REACT[e.reaction]);
+    saveHistory(); toast(e.reaction ? "Im Tagebuch gespeichert: " + REACT[e.reaction] : "Bewertung entfernt");
   } else {
     const k = b.dataset.key, v = b.dataset.mk;
     if (profile.mine[k] === v) delete profile.mine[k]; else profile.mine[k] = v;
     saveProfile();
     toast(profile.mine[k] ? `„${b.dataset.name.slice(0,40)}“: ${v === "ok" ? "vertrage ich" : "vertrage ich nicht"}` : "Markierung entfernt");
   }
-  rerender(); renderDiary(); renderRecipes(); renderProfile();
+  rerender(); renderDiary(); renderRecipes(); renderProfile(); renderRecent();
+  restoreFocus(scope, sel);
+}
+function restoreFocus(scope, sel){
+  if (!scope) return;
+  const n = scope.querySelector(sel); if (n) n.focus({preventScroll:true});
+}
+
+/* ---------- Sheet (Ergebnis, Lebensmittel, Tagebuch-Eintrag) ---------- */
+let sheetCtx = null, sheetReturn = null;
+function openSheet(title, ctx){
+  sheetCtx = ctx;
+  $("#sheetTitle").textContent = title;
+  const s = $("#sheet");
+  if (s.hidden){
+    sheetReturn = document.activeElement; s.hidden = false; s.classList.remove("on"); void s.offsetWidth; s.classList.add("on");
+    document.body.classList.add("lock"); $("#sheetIn").scrollTop = 0; $("#sheetPanel").focus({preventScroll:true});
+  }
+}
+function closeSheet(){
+  const s = $("#sheet"); if (s.hidden) return;
+  s.hidden = true; s.classList.remove("on"); document.body.classList.remove("lock");
+  sheetCtx = null; $("#sheetIn").onclick = null;
+  renderDiary(); renderFoods(); renderRecipes(); renderProfile(); renderRecent();
+  if (sheetReturn && document.contains(sheetReturn)) sheetReturn.focus({preventScroll:true});
+  sheetReturn = null;
+}
+$("#shClose").addEventListener("click", closeSheet);
+$("#sheet").addEventListener("click", e => { if (e.target.id === "sheet") closeSheet(); });
+document.addEventListener("keydown", e => {
+  if ($("#sheet").hidden) return;
+  if (e.key === "Escape"){ closeSheet(); return; }
+  if (e.key === "Tab"){
+    const f = [...$("#sheetPanel").querySelectorAll("button, [href], input, textarea, summary, [tabindex]:not([tabindex='-1'])")].filter(n => !n.disabled && n.offsetParent !== null);
+    if (!f.length) return;
+    if (e.shiftKey && (document.activeElement === f[0] || document.activeElement === $("#sheetPanel"))){ e.preventDefault(); f[f.length-1].focus(); }
+    else if (!e.shiftKey && document.activeElement === f[f.length-1]){ e.preventDefault(); f[0].focus(); }
+  }
+});
+
+function openEntrySheet(h, opts){
+  opts = opts || {};
+  const inn = $("#sheetIn");
+  const isCheck = ["barcode","text","foto"].includes(h.src);
+  inn.innerHTML = `${opts.note ? `<div class="feedback fb-warn" style="margin:0 0 var(--s3)">${fbHtml(esc(opts.note), "", "", SVG.warn)}</div>` : ""}<div id="shRes"></div>
+    <div class="sheet-actions">
+      ${opts.fromCheck ? `<button type="button" class="btn btn-primary btn-block" id="shNext">${SVG.scan}Nächstes Produkt scannen</button>` : ""}
+      <button type="button" class="btn btn-danger btn-block" id="shDel">Eintrag löschen</button>
+    </div>`;
+  openSheet(isCheck ? "Ergebnis" : "Tagebuch-Eintrag", {type:"entry", id:h.id});
+  showResult(h, $("#shRes"));
+  inn.onclick = ev => {
+    if (ev.target.closest("#shNext")){ closeSheet(); goView("check"); startScan(); return; }
+    const del = ev.target.closest("#shDel");
+    if (del){
+      if (del.dataset.c){ history = history.filter(x => x.id !== h.id); saveHistory(); closeSheet(); toast("Eintrag gelöscht"); }
+      else { del.dataset.c = "1"; del.classList.add("armed"); del.textContent = "Wirklich löschen? Nochmal tippen"; }
+    }
+  };
 }
 
 /* ---------- Texterkennung (Tesseract.js) ---------- */
@@ -148,32 +266,43 @@ function cleanOcrText(t){
   const m = s.match(/zutaten\s*:?/i); if (m) s = s.slice(m.index);
   return s;
 }
+function openManual(scroll){
+  $("#manual").hidden = false; $("#manualBtn").setAttribute("aria-expanded", "true");
+  if (scroll) $("#manual").scrollIntoView({behavior:"smooth", block:"start"});
+}
+$("#manualBtn").addEventListener("click", () => {
+  const open = $("#manual").hidden;
+  if (open){ openManual(true); setTimeout(() => $("#txt").focus({preventScroll:true}), 350); }
+  else { $("#manual").hidden = true; $("#manualBtn").setAttribute("aria-expanded", "false"); }
+});
 $("#ocrBtn").addEventListener("click", () => $("#photoOcr").click());
 $("#photoOcr").addEventListener("change", async e => {
   const file = e.target.files && e.target.files[0]; e.target.value = "";
   if (!file) return;
-  const btn = $("#ocrBtn"), prog = $("#ocrProg"), err = $("#photoErr"); err.style.display = "none";
-  const pv = $("#preview"); pv.src = URL.createObjectURL(file); pv.style.display = "block";
-  btn.disabled = true; const old = btn.innerHTML; btn.innerHTML = '<div class="spin"></div> Text wird erkannt…';
-  prog.style.display = "block"; prog.textContent = ocrWorker ? "Erkenne Text…" : "Lade Texterkennung (beim ersten Mal einige MB)…";
+  const btn = $("#ocrBtn"), prog = $("#ocrProg"), err = $("#photoErr"); setFb(err, "");
+  openManual(true); setFb($("#manualHits"), "");
+  const pv = $("#preview"); pv.src = URL.createObjectURL(file); pv.hidden = false;
+  btn.disabled = true; btn.setAttribute("aria-busy", "true");
+  setFb(prog, loadingHtml(ocrWorker ? "Erkenne Text…" : "Lade Texterkennung (beim ersten Mal einige MB)…"));
+  const progTxt = t => { const s = prog.querySelector(".loading span:last-child"); if (s) s.textContent = t; };
   try{
     const w = await getOcrWorker(m => {
-      if (m && m.status === "recognizing text") prog.textContent = "Erkenne Text… " + Math.round((m.progress||0)*100) + " %";
-      else if (m && m.status && /load/i.test(m.status)) prog.textContent = "Lade Texterkennung… " + Math.round((m.progress||0)*100) + " %";
+      if (m && m.status === "recognizing text") progTxt("Erkenne Text… " + Math.round((m.progress||0)*100) + " %");
+      else if (m && m.status && /load/i.test(m.status)) progTxt("Lade Texterkennung… " + Math.round((m.progress||0)*100) + " %");
     });
     const {data} = await w.recognize(await prepForOcr(file));
     const text = cleanOcrText(data && data.text);
-    if (text.length < 8){ err.textContent = "Es wurde kaum Text erkannt. Fotografiere die Zutatenliste möglichst gerade, nah und mit gutem Licht."; err.style.display = "block"; prog.style.display = "none"; return; }
+    if (text.length < 8){ setFb(prog, ""); setFb(err, fbHtml("Kaum Text erkannt", "Fotografiere die Zutatenliste möglichst gerade, nah und bei gutem Licht – und versuch es noch einmal.", actBtn("ocr", "Neues Foto"), SVG.warn), "err"); return; }
     $("#txt").value = text;
-    prog.innerHTML = "Text erkannt – bitte kurz auf Lesefehler prüfen (z. B. „Sorbit“, „Weizen“) und dann <b>Prüfen</b> tippen.";
+    setFb(prog, fbHtml("Text erkannt", "Prüf kurz auf Lesefehler (z. B. „Sorbit“, „Weizen“) und tippe dann auf <b>Prüfen</b>.", "", SVG.check), "ok");
     $("#txt").scrollIntoView({behavior:"smooth", block:"center"});
     $("#txt").classList.add("hl"); setTimeout(() => $("#txt").classList.remove("hl"), 2500);
   }catch(x){
-    ocrWorker = null;
-    err.textContent = "Die Texterkennung konnte nicht starten (Internetverbindung?). Alternativ: Text per Live Text kopieren und unten einfügen.";
-    err.style.display = "block"; prog.style.display = "none";
-  }finally{ btn.disabled = false; btn.innerHTML = old; }
+    ocrWorker = null; setFb(prog, "");
+    setFb(err, fbHtml("Texterkennung konnte nicht starten", "Bist du online? Alternativ: Text auf dem Foto mit Live Text kopieren und unten einfügen.", "", SVG.warn), "err");
+  }finally{ btn.disabled = false; btn.removeAttribute("aria-busy"); }
 });
+$("#manual").addEventListener("click", e => { const g = e.target.closest("[data-go]"); if (g) goAction(g.dataset.go); });
 
 /* ---------- Barcode + Open Food Facts ---------- */
 /* Erkennung: natives BarcodeDetector (falls vorhanden), sonst ZXing-C++ als WebAssembly */
@@ -181,7 +310,8 @@ const BD_SRC = "https://fastly.jsdelivr.net/npm/barcode-detector@2/dist/es/pure.
 const FORMATS = ["ean_13","ean_8","upc_a","upc_e"];
 let detector = null, stream = null, scanning = false, scanTimer = null;
 window.info = info;
-function info(html){ const el = $("#scanInfo"); if (!html){ el.style.display = "none"; return; } el.innerHTML = html; el.style.display = "block"; }
+/* Rückmeldung im Bereich unter der Suche; kind: "", "err", "warn", "list" */
+function info(html, kind){ setFb($("#scanInfo"), html, kind); }
 function scanStatus(t){ $("#scanStatus").textContent = t; }
 async function getDetector(){
   if (detector) return detector;
@@ -200,12 +330,13 @@ function validEan(c){
   const sum = d.slice(0, 12).reduce((s, x, i) => s + x * (i % 2 ? 3 : 1), 0);
   return (10 - sum % 10) % 10 === d[12] || c.length === 8;
 }
+const ALT_ACTIONS = actBtn("ocr", "Zutatenliste fotografieren") + actBtn("manual", "Selbst eingeben");
 async function startScan(){
-  info(""); $("#result").innerHTML = ""; currentResult = null;
+  info("");
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
-    info("Dieser Browser erlaubt keinen Kamerazugriff. Nutze „Barcode fotografieren“ oder tippe die Nummer ein."); return;
+    info(fbHtml("Kein Kamerazugriff in diesem Browser", "Fotografiere den Barcode oder tippe die Nummer ins Suchfeld.", actBtn("bcphoto", "Barcode fotografieren", true), SVG.warn), "warn"); return;
   }
-  $("#scanWrap").style.display = "block"; $("#scanBtn").style.display = "none";
+  $("#scanWrap").hidden = false; $("#scanBtn").hidden = true;
   scanStatus("Kamera wird gestartet…");
   const video = $("#video");
   try{
@@ -216,14 +347,14 @@ async function startScan(){
     await stopScan();
     const n = e && e.name;
     info(n === "NotAllowedError"
-      ? "Kein Kamerazugriff erlaubt. iPhone: Einstellungen → Apps → Safari → Kamera auf „Erlauben“ stellen, dann die Seite neu laden. Alternativ „Barcode fotografieren“."
-      : "Die Kamera konnte nicht gestartet werden (" + esc(n || "Fehler") + "). Nutze „Barcode fotografieren“ oder tippe die Nummer ein.");
+      ? fbHtml("Kamera nicht erlaubt", "iPhone: Einstellungen → Apps → Safari → Kamera auf „Erlauben“ stellen und die Seite neu laden. Oder fotografiere den Barcode.", actBtn("bcphoto", "Barcode fotografieren", true), SVG.warn)
+      : fbHtml("Kamera konnte nicht starten", "(" + esc(n || "Fehler") + ") Fotografiere den Barcode oder tippe die Nummer ein.", actBtn("bcphoto", "Barcode fotografieren", true), SVG.warn), "warn");
     return;
   }
   scanStatus("Scanner wird geladen…");
   let det;
   try{ det = await getDetector(); }
-  catch(e){ await stopScan(); info("Die Barcode-Erkennung konnte nicht geladen werden (Internetverbindung?). Tippe die Nummer ein."); return; }
+  catch(e){ await stopScan(); info(fbHtml("Barcode-Erkennung nicht verfügbar", "Sie konnte nicht geladen werden – bist du online? Tippe die Nummer unter dem Barcode ins Suchfeld.", "", SVG.warn), "warn"); return; }
   scanStatus("Barcode in den Rahmen halten – ca. 15 cm Abstand");
   scanning = true;
   let last = null, busy = false;
@@ -249,10 +380,10 @@ async function stopScan(){
   scanning = false; clearTimeout(scanTimer);
   if (stream){ stream.getTracks().forEach(t => t.stop()); stream = null; }
   const v = $("#video"); if (v) v.srcObject = null;
-  $("#scanWrap").style.display = "none"; $("#scanBtn").style.display = "";
+  $("#scanWrap").hidden = true; $("#scanBtn").hidden = false;
 }
 $("#scanBtn").addEventListener("click", startScan);
-$("#scanStop").addEventListener("click", stopScan);
+$("#scanStop").addEventListener("click", () => { stopScan(); $("#scanBtn").focus(); });
 
 /* Fallback: Barcode fotografieren */
 $("#bcPhotoBtn").addEventListener("click", () => $("#bcPhoto").click());
@@ -260,7 +391,7 @@ $("#bcPhoto").addEventListener("change", async e => {
   const file = e.target.files && e.target.files[0]; e.target.value = "";
   if (!file) return;
   await stopScan();
-  info('<div class="row" style="justify-content:flex-start;gap:10px"><div class="spin" style="flex:none"></div><span>Barcode wird gelesen…</span></div>');
+  info(loadingHtml("Barcode wird gelesen…"));
   try{
     const det = await getDetector();
     const url = URL.createObjectURL(file);
@@ -275,15 +406,17 @@ $("#bcPhoto").addEventListener("change", async e => {
     URL.revokeObjectURL(url);
     const hit = res.map(r => String(r.rawValue || "").replace(/\D/g, "")).find(validEan);
     if (hit) lookup(hit);
-    else info("Auf dem Foto wurde kein Barcode erkannt. Fotografiere ihn gerade, scharf und formatfüllend – oder tippe die Nummer ein.");
-  }catch(x){ info("Die Barcode-Erkennung konnte nicht geladen werden (Internetverbindung?). Tippe die Nummer ein."); }
+    else info(fbHtml("Kein Barcode auf dem Foto erkannt", "Fotografiere ihn gerade, scharf und formatfüllend – oder tippe die Nummer ins Suchfeld.", actBtn("bcphoto", "Neues Foto"), SVG.warn), "warn");
+  }catch(x){ info(fbHtml("Barcode-Erkennung nicht verfügbar", "Sie konnte nicht geladen werden – bist du online? Tippe die Nummer ins Suchfeld.", "", SVG.warn), "warn"); }
 });
-$("#eanBtn").addEventListener("click", () => {
+$("#eanForm").addEventListener("submit", e => {
+  e.preventDefault();
   const v = $("#eanIn").value.trim();
-  if (!v){ $("#eanIn").focus(); return; }
+  if (!v){ $("#eanIn").focus(); info(fbHtml("Was suchst du?", "Gib einen Produktnamen (z. B. „Ferrero Nutella“) oder die Nummer unter dem Barcode ein."), ""); return; }
+  $("#eanIn").blur();
   if (/^[\d\s-]+$/.test(v)){
     const c = v.replace(/\D/g,"");
-    if (c.length >= 8) lookup(c); else info("Bitte die komplette Nummer unter dem Barcode eingeben (8–13 Ziffern).");
+    if (c.length >= 8) lookup(c); else info(fbHtml("Nummer unvollständig", "Bitte die komplette Nummer unter dem Barcode eingeben (8–13 Ziffern).", "", SVG.warn), "warn");
   } else searchProducts(v);
 });
 
@@ -315,43 +448,55 @@ async function offSearch(q){
   }catch(e){ errors.push("Suche alt: " + (e.name === "AbortError" ? "Zeitüberschreitung" : e.message)); }
   const err = new Error(errors.join(" · ")); err.all = true; throw err;
 }
+/* Ausgabe dort, wo gesucht wurde: oben unter der Suche oder unten unter „Selbst eingeben“ */
+const outEl = where => where === "bottom" ? $("#manualHits") : $("#scanInfo");
 async function searchProducts(q, where){
-  $("#result").innerHTML = ""; currentResult = null;
-  /* Ausgabe dort, wo gesucht wurde: oben im Hinweisfeld oder unten im Ergebnisbereich */
-  const info = where === "bottom"
-    ? (html => { $("#scanInfo").style.display = "none"; $("#result").innerHTML = html ? `<div class="card" id="searchCard"><div class="note" style="margin:0;background:none;padding:0">${html}</div></div>` : ""; })
-    : window.info;
-  info('<div class="row" style="justify-content:flex-start;gap:10px"><div class="spin" style="flex:none"></div><span>Suche „' + esc(q) + '“ bei Open Food Facts…</span></div>');
+  const el = outEl(where), show = (h, k) => setFb(el, h, k);
+  if (where === "bottom") info(""); else setFb($("#manualHits"), "");
+  show(loadingHtml("Suche „" + esc(q) + "“ bei Open Food Facts…"));
   let list;
   try{ list = await offSearch(q); }
-  catch(e){ info("Die Suche hat nicht geklappt – Open Food Facts ist gerade nicht erreichbar oder überlastet. Versuch es gleich noch einmal oder scanne den Barcode.<br><span class=\"meta\">Details: " + esc(e.message) + "</span>"); return; }
+  catch(e){ show(fbHtml("Suche hat nicht geklappt", "Open Food Facts ist gerade nicht erreichbar oder überlastet. Versuch es gleich noch einmal oder scanne den Barcode.<br><span class=\"meta\">Details: " + esc(e.message) + "</span>", actBtn("retry:" + where + ":" + encodeURIComponent(q), "Nochmal versuchen", true), SVG.warn), "err"); return; }
   const de = x => (x.countries_tags || []).includes("en:germany") ? 0 : 1;
   list.sort((a, b) => de(a) - de(b));
-  if (!list.length){ info("Kein Produkt zu „" + esc(q) + "“ gefunden. Versuch es mit Marke und Produkt (z. B. „Ferrero Nutella“), scanne den Barcode oder fotografiere die Zutatenliste."); return; }
-  info(`<b style="color:var(--ink)">${list.length} Treffer – Produkt antippen:</b>` + list.slice(0, 15).map(x => {
+  if (!list.length){ show(fbHtml("Nichts gefunden zu „" + esc(q) + "“", "Versuch es mit Marke und Produkt (z. B. „Ferrero Nutella“), scanne den Barcode oder fotografiere die Zutatenliste.", where === "bottom" ? actBtn("ocr", "Zutatenliste fotografieren") : ALT_ACTIONS), ""); return; }
+  show(`<p class="hits-hd">${list.length} Treffer – tippe auf dein Produkt</p><ul class="list hits">` + list.slice(0, 15).map(x => {
     const name = nameOf(x), brand = brandOf(x).trim();
     const ing = x.ingredients_text_de ?? x.ingredients_text;
     const hasIng = ing === undefined ? true : !!String(ing || "").trim();
-    return `<div class="food" data-code="${esc(x.code)}" style="cursor:pointer"><div class="n" style="color:var(--ink)">${esc(name)}<small>${esc([brand, x.quantity].filter(Boolean).join(" · "))}${hasIng ? "" : " · keine Zutaten hinterlegt"}</small></div><span class="muted">›</span></div>`;
-  }).join(""));
+    const sub = [brand, x.quantity].filter(Boolean).join(" · ") + (hasIng ? "" : " · keine Zutaten hinterlegt");
+    return `<li><button type="button" class="row-btn" data-code="${esc(x.code)}" data-where="${where || "top"}"><span class="txt"><b>${esc(name)}</b>${sub ? `<small>${esc(sub)}</small>` : ""}</span>${SVG.chev}</button></li>`;
+  }).join("") + "</ul>", "list");
 }
-$("#scanInfo").addEventListener("click", e => { const r = e.target.closest("[data-code]"); if (r) lookup(r.dataset.code); });
-$("#result").addEventListener("click", e => { const r = e.target.closest("#searchCard [data-code]"); if (r){ e.stopPropagation(); lookup(r.dataset.code); } }, true);
-$("#eanIn").addEventListener("keydown", e => { if (e.key === "Enter") $("#eanBtn").click(); });
+function goAction(go){
+  if (go === "ocr") $("#photoOcr").click();
+  else if (go === "manual"){ openManual(true); setTimeout(() => $("#txt").focus({preventScroll:true}), 350); }
+  else if (go === "bcphoto") $("#bcPhoto").click();
+  else if (go === "scan") startScan();
+  else if (go.startsWith("retry:")){ const [, w, q] = go.split(":"); searchProducts(decodeURIComponent(q), w === "bottom" ? "bottom" : undefined); }
+  else goView(go);
+}
+function onHitsClick(e){
+  const r = e.target.closest("[data-code]"); if (r){ lookup(r.dataset.code, r.dataset.where); return; }
+  const g = e.target.closest("[data-go]"); if (g) goAction(g.dataset.go);
+}
+$("#scanInfo").addEventListener("click", onHitsClick);
+$("#manualHits").addEventListener("click", onHitsClick);
 
 const OFF_FIELDS = "product_name,product_name_de,generic_name_de,brands,ingredients_text_de,ingredients_text,allergens_tags,traces_tags,labels_tags";
-async function lookup(code){
+async function lookup(code, where){
   try{ if (navigator.vibrate) navigator.vibrate(60); }catch(e){}
-  $("#eanIn").value = code;
-  info('<div class="row" style="justify-content:flex-start;gap:10px"><div class="spin" style="flex:none"></div><span>Suche Produkt ' + esc(code) + ' …</span></div>');
+  const el = outEl(where), show = (h, k) => setFb(el, h, k);
+  if (where !== "bottom") $("#eanIn").value = code;
+  show(loadingHtml("Suche Produkt " + esc(code) + " …"));
   let j;
   try{
     const r = await fetch("https://world.openfoodfacts.org/api/v2/product/" + encodeURIComponent(code) + ".json?lc=de&fields=" + OFF_FIELDS);
     j = await r.json();
-  }catch(e){ info("Keine Verbindung zu Open Food Facts. Bist du online?"); return; }
+  }catch(e){ show(fbHtml("Keine Verbindung zu Open Food Facts", "Bist du online? Ohne Internet kannst du die Zutatenliste selbst eingeben.", ALT_ACTIONS, SVG.warn), "err"); return; }
   if (!j || j.status !== 1 || !j.product){
-    info("Produkt <b>" + esc(code) + "</b> ist nicht in Open Food Facts. Fotografiere stattdessen die Zutatenliste. " +
-      '<a href="https://world.openfoodfacts.org/cgi/product.pl?type=add&code=' + esc(code) + '">Produkt bei Open Food Facts eintragen</a>');
+    show(fbHtml("Produkt " + esc(code) + " ist noch nicht in Open Food Facts", "Fotografiere die Zutatenliste oder gib sie selbst ein. " +
+      '<a href="https://world.openfoodfacts.org/cgi/product.pl?type=add&code=' + esc(code) + '" target="_blank" rel="noopener">Produkt bei Open Food Facts eintragen</a>', ALT_ACTIONS), "warn");
     return;
   }
   const p = j.product;
@@ -361,7 +506,7 @@ async function lookup(code){
   const gf = labels.some(l => /no-gluten|gluten-free|glutenfrei/.test(l));
   const lf = labels.some(l => /no-lactose|lactose-free|laktosefrei/.test(l));
   if (!txt.trim() && !allergens.length){
-    info("<b>" + esc(name) + "</b> ist bekannt, aber ohne Zutatenliste. Fotografiere die Zutatenliste, um sie zu prüfen.");
+    show(fbHtml(esc(name) + " – ohne Zutatenliste", "Das Produkt ist bekannt, aber die Zutaten fehlen. Fotografiere die Zutatenliste, um es zu prüfen.", ALT_ACTIONS), "warn");
     return;
   }
   const {parts, spuren} = splitIngredients(txt);
@@ -378,41 +523,53 @@ async function lookup(code){
   const trWords = traces.map(t => OFF_ALLERGENS[t]).filter(Boolean).map(c => ALLERGEN_WORD[c]);
   let tr = spuren;
   if (trWords.length) tr = (tr ? tr + " " : "") + "Kann Spuren von " + trWords.join(", ") + " enthalten";
-  info(txt.trim() ? "" : "Für dieses Produkt ist nur die Allergenkennzeichnung hinterlegt, keine vollständige Zutatenliste – Histamin und Fructose sind deshalb nicht bewertbar.");
+  show("");
+  const note = txt.trim() ? "" : "Nur die Allergenkennzeichnung ist hinterlegt, keine vollständige Zutatenliste – Histamin, Fructose & Co. sind deshalb nicht bewertbar.";
   const e = addEntry(name, {mode:"label", items, spuren: tr, gf, lf}, "barcode", code);
-  currentResult = e; showResult(e, $("#result")); renderDiary();
-  $("#result").scrollIntoView({behavior:"smooth", block:"start"});
+  renderDiary(); renderRecent();
+  openEntrySheet(e, {fromCheck:true, note});
 }
 
 $("#txtBtn").addEventListener("click", () => {
-  $("#ocrProg").style.display = "none";
+  setFb($("#ocrProg"), ""); setFb($("#photoErr"), "");
   const t = $("#txt").value.trim();
   if (!t){
     const name = $("#txtName").value.trim();
     if (name) searchProducts(name, "bottom");
-    else $("#txt").focus();
+    else { setFb($("#manualHits"), fbHtml("Noch nichts eingegeben", "Füge die Zutatenliste ein – oder trag nur den Produktnamen ein, dann suchen wir online."), ""); $("#txt").focus(); }
     return;
   }
   const {parts, spuren} = splitIngredients(t);
-  if (!parts.length) return;
+  if (!parts.length){ setFb($("#manualHits"), fbHtml("Keine Zutaten erkannt", "Trenne die Zutaten mit Kommas, z. B. „Weizenmehl, Zucker, Salz“.", "", SVG.warn), "warn"); return; }
+  setFb($("#manualHits"), "");
   const gf = /glutenfrei/i.test($("#txtName").value), lf = /laktosefrei/i.test($("#txtName").value);
   const e = addEntry($("#txtName").value.trim() || "Eigene Eingabe", {mode:"label", items: parts.map(n => ({n})), spuren, gf, lf}, "text");
-  currentResult = e; showResult(e, $("#result")); renderDiary();
-  $("#result").scrollIntoView({behavior:"smooth", block:"start"});
+  renderDiary(); renderRecent();
+  openEntrySheet(e, {fromCheck:true});
 });
+
+/* Zuletzt geprüft */
+function renderRecent(){
+  const list = history.filter(h => ["barcode","text","foto"].includes(h.src)).slice(0, 3);
+  if (!list.length){ $("#recent").innerHTML = ""; return; }
+  $("#recent").innerHTML = `<h2 class="section-title">Zuletzt geprüft</h2><div class="card flush"><ul class="list">${list.map(h => {
+    const ev = evaluate(h.raw, profile);
+    return `<li><button type="button" class="row-btn" data-id="${h.id}">${st(ev.total)}<span class="txt"><b class="ell">${esc(h.name)}</b><small>${LABEL[ev.total]} · ${fmtDate(h.ts)}</small></span>${SVG.chev}</button></li>`;
+  }).join("")}</ul></div>`;
+}
+$("#recent").addEventListener("click", e => { const b = e.target.closest("[data-id]"); if (!b) return; const h = history.find(x => x.id === b.dataset.id); if (h) openEntrySheet(h); });
 
 /* ---------- Lebensmittel ---------- */
 let foodCat = "Alle";
-function dotsHtml(r, cats){
-  return `<div class="dots">${cats.map(c => `<span class="c${r[c]}" title="${CATS[c]}: ${LABEL[r[c]]}">${CAT[c].short}</span>`).join("")}</div>`;
-}
+function badgesHtml(lv, cats){ return `<span class="badges">${cats.map(c => badge(c, lv[c])).join("")}</span>`; }
 function foodLevels(f){ const lv = {}; for (const c of KEYS) lv[c] = finalLevel(c, f[c], false, profile.sens[c]); const k = ingKey(f.n); if (profile.mine[k] === "ok") KEYS.forEach(c => lv[c] = 0); return lv; }
 function renderCats(){
   const ks = ["Alle", ...new Set(FOODS.map(f => f.k))];
-  $("#cats").innerHTML = ks.map(k => `<button class="${k===foodCat?"on":""}" data-k="${esc(k)}">${esc(k)}</button>`).join("");
+  $("#cats").innerHTML = ks.map(k => `<button type="button" aria-pressed="${k===foodCat}" data-k="${esc(k)}">${esc(k)}</button>`).join("");
 }
-$("#cats").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; foodCat = b.dataset.k; renderCats(); renderFoods(); });
+$("#cats").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; foodCat = b.dataset.k; renderCats(); renderFoods(); const n = $(`#cats [data-k="${CSS.escape(foodCat)}"]`); if (n) n.focus({preventScroll:true}); });
 $("#q").addEventListener("input", () => renderFoods());
+$("#q").addEventListener("keydown", e => { if (e.key === "Enter") e.target.blur(); });
 function renderFoods(){
   const q = norm($("#q").value.trim()), cats = activeCats();
   const list = FOODS.map((f, idx) => ({f, idx, lv: foodLevels(f)}))
@@ -420,31 +577,44 @@ function renderFoods(){
   const worst = x => (profile.mine[ingKey(x.f.n)] === "bad") ? 3 : cats.length ? Math.max(...cats.map(c => x.lv[c])) : 0;
   const rank = x => !q ? 0 : norm(x.f.n).startsWith(q) ? 0 : norm(x.f.n).split(/[^a-z]+/).some(w => w.startsWith(q)) ? 1 : 2;
   list.sort((a,b) => rank(a) - rank(b) || worst(a) - worst(b) || a.f.n.localeCompare(b.f.n, "de"));
+  $("#foodHint").innerHTML = cats.length
+    ? `<div class="legend" aria-hidden="true"><span>${st(0,"sm")}verträglich</span><span>${st(1,"sm")}Vorsicht</span><span>${st(2,"sm")}meiden</span></div>`
+    : `<div class="feedback" style="margin:var(--s2) 0">${fbHtml("Noch kein Profil aktiv", "Wähle aus, was du nicht verträgst – dann zeigt dir die Liste Ampeln.", actBtn("prof", "Profil einrichten", true))}</div>`;
   $("#foodList").innerHTML = list.length
-    ? list.map(({f, idx, lv}) => `<div class="food" data-i="${idx}" style="cursor:pointer"><div class="n">${esc(f.n)}${profile.mine[ingKey(f.n)] ? ` <span class="flag" style="color:${profile.mine[ingKey(f.n)]==="ok"?"var(--ok)":"var(--bad)"}">${profile.mine[ingKey(f.n)]==="ok"?"✓ vertrage ich":"✕ vertrage ich nicht"}</span>` : ""}${f.note ? `<small>${esc(f.note)}</small>` : ""}</div>${dotsHtml(lv, cats)}</div>`).join("")
-    : `<p class="muted" style="margin:0">Kein Treffer in der Liste. Prüfe Produkte über Barcode oder Zutatenliste.</p>`;
+    ? list.map(({f, idx, lv}) => {
+      const m = profile.mine[ingKey(f.n)], w = Math.min(2, worst({f, lv}));
+      return `<li><button type="button" class="row-btn food-row" data-i="${idx}">${cats.length || m ? st(m === "ok" ? 0 : w) + `<span class="sr-only">${m === "ok" ? LABEL[0] : LABEL[w]}:</span>` : ""}<span class="txt"><b>${esc(f.n)}</b>${f.note ? `<small>${esc(f.note)}</small>` : ""}${m ? `<span class="flag ${m === "ok" ? "ok" : "bad"}">${m === "ok" ? "✓ vertrage ich" : "✕ vertrage ich nicht"}</span>` : ""}</span>${badgesHtml(lv, cats)}</button></li>`;
+    }).join("")
+    : `<li class="empty">${SVG.search}<b>Kein Treffer in der Liste</b>Prüf verpackte Produkte lieber über Barcode oder Zutatenliste.<br><button type="button" class="btn btn-secondary" data-go="check">Produkt prüfen</button></li>`;
 }
 $("#foodList").addEventListener("click", e => {
-  const row = e.target.closest(".food"); if (!row) return;
+  const g = e.target.closest("[data-go]"); if (g){ goView(g.dataset.go); return; }
+  const row = e.target.closest(".food-row"); if (!row) return;
   const f = FOODS[+row.dataset.i]; if (f) openFoodSheet(f);
 });
+$("#foodHint").addEventListener("click", e => { const g = e.target.closest("[data-go]"); if (g) goView(g.dataset.go); });
 function openFoodSheet(f){
   const lv = foodLevels(f), key = ingKey(f.n);
   const inn = $("#sheetIn");
-  inn.innerHTML = `<div class="row" style="justify-content:flex-end"><button class="ghost" id="shClose" style="flex:none">Fertig</button></div>
-  <div class="card"><h2>${esc(f.n)}</h2><p class="small muted" style="margin:0">${esc(f.k)}${f.note ? " · " + esc(f.note) : ""}</p>
-  <div class="chips">${KEYS.map(c => `<span class="chip" style="${profile.on[c] ? "" : "opacity:.55"}"><i class="c${lv[c]}"></i>${CATS[c]}: ${LABEL[lv[c]]}</span>`).join("")}</div>
-  <div class="mk" style="margin-top:12px">${["ok","bad"].map(v => `<button type="button" class="${v}${profile.mine[key]===v?" on":""}" data-mk="${v}" data-key="${esc(key)}" data-name="${esc(f.n)}">${v==="ok"?"vertrage ich":"vertrage ich nicht"}</button>`).join("")}</div></div>
-  <div class="card"><h2>Heute gegessen?</h2><p class="small muted" style="margin:0">Trag ein, wie du es vertragen hast – das fließt in die Analyse im Tagebuch ein.</p>
-  <div class="react">${Object.keys(REACT).map(k => `<button type="button" class="${k}" data-fr="${k}">${REACT[k]}</button>`).join("")}</div></div>`;
-  openSheet();
+  const act = activeCats(), rest = KEYS.filter(c => !profile.on[c]);
+  const sorted = act.slice().sort((a,b) => lv[b] - lv[a]);
+  const worst = act.length ? Math.max(...act.map(c => lv[c])) : 0;
+  const m = profile.mine[key];
+  const total = m === "bad" ? 2 : worst;
+  inn.innerHTML = `
+  <div class="verdict v${total}"><div class="vi" aria-hidden="true">${SYM[total]}</div><div><p class="vl">${act.length || m ? LABEL[total] : "Kein Profil aktiv"}</p><p class="vn">${esc(f.k)}${f.note ? " · " + esc(f.note) : ""}</p></div></div>
+  ${act.length ? `<div class="chips" style="margin-top:var(--s3)">${sorted.map(c => chip(lv[c], esc(CATS[c]), ": " + LABEL[lv[c]])).join("")}${m === "bad" ? chip(2, "Persönlich", ": Meiden") : ""}</div>` : ""}
+  ${rest.length ? `<details class="disc" style="margin-top:var(--s2)"><summary>${SVG.chev}Weitere Kategorien</summary><div class="chips">${rest.map(c => `<span class="chip off">${badge(c, lv[c])}${esc(CATS[c])}: ${LABEL[lv[c]]}</span>`).join("")}</div></details>` : ""}
+  <section class="block"><h3 class="block-title">Deine Erfahrung</h3>${mkButtons(key, f.n, m)}</section>
+  <section class="block"><h3 class="block-title">Heute gegessen?</h3><p class="hint" style="margin:-4px 0 var(--s2)">Trag ein, wie du es vertragen hast – das fließt in die Tagebuch-Analyse ein.</p>
+  ${reactHtml(null, k => `data-fr="${k}"`)}</section>`;
+  openSheet(f.n, {type:"food"});
   inn.onclick = ev => {
     const fr = ev.target.closest("[data-fr]");
     if (fr){
       const e = addEntry(f.n, {mode:"food", items:[{n:f.n, x:Object.fromEntries(KEYS.map(c => [c, f[c] || 0])), note:f.note}]}, "food");
       e.reaction = fr.dataset.fr; saveHistory(); renderDiary(); closeSheet(); toast("Im Tagebuch gespeichert: " + REACT[e.reaction]); return;
     }
-    if (ev.target.closest("#shClose")){ closeSheet(); return; }
     handleActions(ev, () => { openFoodSheet(f); renderFoods(); });
   };
 }
@@ -452,8 +622,8 @@ function openFoodSheet(f){
 /* ---------- Rezepte ---------- */
 let meal = "alle";
 const recipeEntry = {};
-function renderMeals(){ $("#meals").innerHTML = Object.keys(MEALS).map(k => `<button class="${k===meal?"on":""}" data-m="${k}">${MEALS[k]}</button>`).join(""); }
-$("#meals").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; meal = b.dataset.m; renderMeals(); renderRecipes(); });
+function renderMeals(){ $("#meals").innerHTML = Object.keys(MEALS).map(k => `<button type="button" aria-pressed="${k===meal}" data-m="${k}">${MEALS[k]}</button>`).join(""); }
+$("#meals").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; meal = b.dataset.m; renderMeals(); renderRecipes(); const n = $(`#meals [data-m="${meal}"]`); if (n) n.focus({preventScroll:true}); });
 $("#showWarn").addEventListener("change", () => renderRecipes());
 function renderRecipes(){
   const open = new Set([...document.querySelectorAll("#recipeList details[open]")].map(d => d.dataset.i));
@@ -464,15 +634,16 @@ function renderRecipes(){
   const html = shown.map(({r, i, ev}) => {
     const items = ev.items;
     const zl = r.z.map((z, k) => { const it = items[k]; const lv = Math.max(0, ...ev.cats.map(c => it.lvl[c]));
-      return `<li>${esc(z.replace(/^~\s*/, ""))}${lv ? ` <span class="flag" style="color:${lv===2?"var(--bad)":"var(--warn)"}">● ${esc(ev.cats.filter(c => it.lvl[c] === lv).map(c => CATS[c]).join(", "))}</span>` : ""}</li>`; }).join("");
+      return `<li>${esc(z.replace(/^~\s*/, ""))}${lv ? `<span class="rflag">${ev.cats.filter(c => it.lvl[c] > 0).map(c => badge(c, it.lvl[c])).join("")}</span>` : ""}</li>`; }).join("");
     const last = recipeEntry[i] && history.find(h => h.id === recipeEntry[i]);
-    return `<div class="rcp"><div class="hd"><i class="c${ev.total}"></i><div style="flex:1"><b>${esc(r.t)}</b><span class="meta">${r.m.map(m => MEALS[m]).join(" · ")} · ${r.min} Min.${ev.total ? " · " + esc(reasonText(ev)) : ""}</span></div></div>
-      <details data-i="${i}"${open.has(String(i)) ? " open" : ""}><summary>Zutaten &amp; Zubereitung</summary><ul>${zl}</ul><ol>${r.s.map(s => `<li>${esc(s)}</li>`).join("")}</ol>
-      <p class="small" style="margin:12px 0 0;font-weight:600">Nachgekocht? Wie hast du es vertragen?</p>
-      <div class="react">${Object.keys(REACT).map(k => `<button type="button" class="${k}${last && last.reaction===k?" on":""}" data-rr="${k}" data-ri="${i}">${REACT[k]}</button>`).join("")}</div></details></div>`;
+    return `<article class="card recipe"><div class="recipe-hd">${st(ev.total)}<span class="sr-only">${LABEL[ev.total]}:</span><div style="flex:1;min-width:0"><h3>${esc(r.t)}</h3><p class="meta">${r.m.map(m => MEALS[m]).join(" · ")} · ${r.min} Min.</p></div></div>
+      ${ev.total ? `<p class="reason">${esc(reasonText(ev))}</p>` : ""}
+      <details class="disc" data-i="${i}"${open.has(String(i)) ? " open" : ""}><summary>${SVG.chev}Zutaten &amp; Zubereitung</summary><h4>Zutaten</h4><ul>${zl}</ul><h4>Zubereitung</h4><ol>${r.s.map(s => `<li>${esc(s)}</li>`).join("")}</ol>
+      <h4>Nachgekocht? Wie hast du es vertragen?</h4>
+      ${reactHtml(last || null, k => `data-rr="${k}" data-ri="${i}"`)}</details></article>`;
   }).join("");
-  $("#recipeList").innerHTML = (html || `<p class="muted" style="margin:0">Keine passenden Rezepte für diese Auswahl.</p>`) +
-    (hidden ? `<p class="small muted" style="margin:12px 0 0">${hidden} Rezept${hidden>1?"e":""} ausgeblendet, weil sie nicht zu deinem Profil passen${showWarn ? "" : " oder Vorsicht-Zutaten enthalten"}.</p>` : "");
+  $("#recipeList").innerHTML = (html || `<div class="card empty">${SVG.bowl}<b>Keine passenden Rezepte</b>${hidden ? (showWarn ? "Für diese Mahlzeit passt gerade nichts zu deinem Profil." : "Schalte „Vorsicht“ oben ein oder wähle eine andere Mahlzeit.") : "Wähle eine andere Mahlzeit."}</div>`) +
+    (hidden ? `<p class="meta" style="margin:var(--s3) var(--s1) 0">${hidden} Rezept${hidden>1?"e":""} ausgeblendet, weil sie nicht zu deinem Profil passen${showWarn ? "" : " oder Vorsicht-Zutaten enthalten"}.</p>` : "");
 }
 $("#recipeList").addEventListener("click", ev => {
   const b = ev.target.closest("[data-rr]"); if (!b) return;
@@ -481,46 +652,65 @@ $("#recipeList").addEventListener("click", ev => {
   if (!e){ e = addEntry(r.t, recipeRaw(r), "recipe"); recipeEntry[i] = e.id; }
   e.reaction = e.reaction === b.dataset.rr ? null : b.dataset.rr;
   saveHistory(); renderRecipes(); renderDiary();
-  if (e.reaction) toast("Im Tagebuch gespeichert: " + REACT[e.reaction]);
+  restoreFocus($("#recipeList"), `[data-rr="${b.dataset.rr}"][data-ri="${i}"]`);
+  toast(e.reaction ? "Im Tagebuch gespeichert: " + REACT[e.reaction] : "Bewertung entfernt");
 });
 
 /* ---------- Tagebuch + Analyse ---------- */
 const VERD = {strong:["Starker Hinweis","p-strong"], possible:["Möglicher Hinweis","p-possible"], none:["Kein Hinweis","p-none"], data:["Zu wenig Daten","p-data"]};
+function acatHtml(c, x){
+  const [vt, vc] = VERD[x.verdict];
+  const pE = Math.round(x.rE * 100), pU = Math.round(x.rU * 100);
+  let h = `<div class="acat"><div class="acat-hd"><b>${esc(CATS[c])}</b><span class="pill ${vc}">${vt}</span></div>`;
+  if (x.verdict === "data") h += `<p class="meta" style="margin-top:2px">Noch zu wenige Einträge mit und ohne ${esc(CATS[c])}-Zutaten zum Vergleichen.</p>`;
+  else h += `<div class="bars" aria-label="Schlecht vertragen: mit ${esc(CATS[c])}-Zutaten ${pE} %, ohne ${pU} %"><span>mit</span><div class="bar"><i style="width:${pE}%;background:var(--bad)"></i></div><span>${pE} %</span><span>ohne</span><div class="bar"><i style="width:${pU}%;background:var(--unk)"></i></div><span>${pU} %</span></div>`;
+  if ((x.verdict === "strong" || x.verdict === "possible") && !profile.on[c]) h += `<button type="button" class="btn btn-secondary btn-sm" data-act="${c}" style="margin-top:var(--s2)">${esc(CATS[c])} im Profil aktivieren</button>`;
+  if (c === "g" && (x.verdict === "strong" || x.verdict === "possible")) h += `<div class="note warn">Wichtig: Lass eine Zöliakie ärztlich abklären, <b>bevor</b> du dauerhaft auf Gluten verzichtest – sonst ist der Bluttest nicht mehr aussagekräftig.</div>`;
+  if ((c === "f" || c === "l") && x.verdict === "strong") h += `<div class="note">Ein H2-Atemtest beim Arzt kann eine ${c === "f" ? "Fruktose" : "Laktose"}-Unverträglichkeit sicher bestätigen.</div>`;
+  return h + `</div>`;
+}
+function dayLabel(ts){
+  const d = new Date(ts), t = new Date(); t.setHours(0,0,0,0);
+  const d0 = new Date(d); d0.setHours(0,0,0,0);
+  const diff = Math.round((t - d0) / 864e5);
+  return diff === 0 ? "Heute" : diff === 1 ? "Gestern" : d.toLocaleDateString("de-DE", {weekday:"long", day:"numeric", month:"long", year: d.getFullYear() === t.getFullYear() ? undefined : "numeric"});
+}
 function renderDiary(){
   const a = analyze(history, profile);
-  let h = `<h2>Analyse</h2>`;
+  let h = `<div class="card-hd"><h2 class="h2">Analyse</h2>${a.n >= 5 ? `<span class="meta">${a.n} bewertet</span>` : ""}</div>`;
   if (a.n < 5){
-    h += `<p class="small muted" style="margin:0">Bewerte mindestens 5 gegessene Produkte, Lebensmittel oder Rezepte mit <b>👍 Gut</b> oder <b>👎 Schlecht</b> (bisher ${a.n}). Je mehr Einträge, desto aussagekräftiger – ideal sind 20 und mehr, darunter auch gut vertragene Sachen.</p>
-      <p class="small muted" style="margin:8px 0 0">So geht’s: Produkt prüfen oder Rezept wählen → nach dem Essen „Wie hast du es vertragen?“ antippen.</p>`;
+    h += `<p class="lead">Bewerte mindestens 5 Sachen, die du gegessen hast, mit <b>Gut</b> oder <b>Schlecht</b> – dann zeigt dir die Analyse Muster.</p>
+      <div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="5" aria-valuenow="${a.n}" aria-label="Bewertungen"><i style="width:${a.n * 20}%"></i></div>
+      <p class="meta">${a.n} von 5 Bewertungen · ideal sind 20 und mehr, auch gut vertragene Sachen</p>
+      <ol class="steps"><li>Produkt prüfen, Lebensmittel oder Rezept wählen</li><li>Nach dem Essen „Wie hast du es vertragen?“ antippen</li></ol>`;
   } else {
-    h += `<p class="small muted" style="margin:0 0 6px">Ausgewertet: ${a.n} Einträge (${a.bad} schlecht vertragen)${a.unsure ? `, ${a.unsure} × „weiß nicht“ nicht berücksichtigt` : ""}.</p>`;
-    const shownCats = KEYS.filter(c => profile.on[c] || ["strong","possible"].includes(a.cats[c].verdict) || ["h","f","l","g"].includes(c));
-    for (const c of shownCats){
-      const x = a.cats[c], [vt, vc] = VERD[x.verdict];
-      const pE = Math.round(x.rE * 100), pU = Math.round(x.rU * 100);
-      h += `<div class="acat"><div class="hd"><b>${CATS[c]}</b><span class="pill ${vc}">${vt}</span></div>`;
-      if (x.verdict === "data") h += `<div class="meta">Zu wenige Einträge mit und ohne ${CATS[c]}-Zutaten, um zu vergleichen.</div>`;
-      else h += `<div class="meta">Mit ${CATS[c]}-Zutaten: ${pE} % schlecht vertragen · ohne: ${pU} %</div>
-        <div class="bar"><i style="width:${pE}%;background:var(--bad)"></i></div><div class="bar"><i style="width:${pU}%;background:var(--unk)"></i></div>`;
-      if ((x.verdict === "strong" || x.verdict === "possible") && !profile.on[c]) h += `<button type="button" data-act="${c}" style="margin-top:8px;padding:8px 12px;font-size:14px">${CATS[c]} im Profil aktivieren</button>`;
-      if (c === "g" && (x.verdict === "strong" || x.verdict === "possible")) h += `<div class="note">Wichtig: Lass eine Zöliakie ärztlich abklären, <b>bevor</b> du dauerhaft auf Gluten verzichtest – sonst ist der Bluttest nicht mehr aussagekräftig.</div>`;
-      if ((c === "f" || c === "l") && x.verdict === "strong") h += `<div class="note">Ein H2-Atemtest beim Arzt kann eine ${c === "f" ? "Fruktose" : "Laktose"}-Unverträglichkeit sicher bestätigen.</div>`;
-      h += `</div>`;
-    }
-    if (a.suspects.length) h += `<h2 style="margin-top:14px">Verdächtige Zutaten</h2><p class="small muted" style="margin:0 0 4px">Tauchen vor allem bei schlecht Vertragenem auf.</p>` +
-      a.suspects.map(s => `<div class="mine"><span>${esc(s.name)} <span class="meta">· ${s.bad}× schlecht, ${s.good}× gut</span></span>${profile.mine[s.key] === "bad" ? '<span class="meta">markiert</span>' : `<button type="button" data-mk="bad" data-key="${esc(s.key)}" data-name="${esc(s.name)}" style="padding:6px 10px;font-size:13px">vertrage ich nicht</button>`}</div>`).join("");
-    if (a.safe.length) h += `<h2 style="margin-top:14px">Gut vertragen</h2>` +
-      a.safe.map(s => `<div class="mine"><span>${esc(s.name)} <span class="meta">· ${s.good}× gut</span></span>${profile.mine[s.key] === "ok" ? '<span class="meta">markiert</span>' : `<button type="button" data-mk="ok" data-key="${esc(s.key)}" data-name="${esc(s.name)}" style="padding:6px 10px;font-size:13px">vertrage ich</button>`}</div>`).join("");
-    h += `<p class="small muted" style="margin:12px 0 0">Die Analyse vergleicht, wie oft du Essen mit und ohne bestimmte Zutaten schlecht vertragen hast. Sie ist ein Hinweis, keine Diagnose – sprich Auffälligkeiten mit deiner Ärztin oder deinem Arzt ab.</p>`;
+    h += `<p class="meta" style="margin-bottom:var(--s2)">${a.bad} davon schlecht vertragen${a.unsure ? ` · ${a.unsure} × „weiß nicht“ nicht berücksichtigt` : ""}</p>`;
+    const hint = c => ["strong","possible"].includes(a.cats[c].verdict);
+    const main = KEYS.filter(c => profile.on[c] || hint(c)).sort((x, y) => (hint(y) - hint(x)));
+    const more = KEYS.filter(c => !main.includes(c) && ["h","f","l","g"].includes(c));
+    h += main.length ? main.map(c => acatHtml(c, a.cats[c])).join("") : `<p class="meta">Kein Profil aktiv und keine Auffälligkeiten.</p>`;
+    if (more.length) h += `<details class="disc"><summary>${SVG.chev}Weitere Kategorien</summary>${more.map(c => acatHtml(c, a.cats[c])).join("")}</details>`;
+    if (a.suspects.length) h += `<section class="block"><h3 class="block-title">Verdächtige Zutaten</h3><p class="hint" style="margin:-4px 0 var(--s1)">Tauchen vor allem bei schlecht Vertragenem auf.</p>` +
+      a.suspects.map(s => `<div class="sug"><span class="name">${esc(s.name)} <span class="meta">· ${s.bad}× schlecht, ${s.good}× gut</span></span>${profile.mine[s.key] === "bad" ? '<span class="flag bad meta">✕ markiert</span>' : `<button type="button" class="btn btn-sm btn-outline" data-mk="bad" data-key="${esc(s.key)}" data-name="${esc(s.name)}">vertrage ich nicht</button>`}</div>`).join("") + `</section>`;
+    if (a.safe.length) h += `<section class="block"><h3 class="block-title">Gut vertragen</h3>` +
+      a.safe.map(s => `<div class="sug"><span class="name">${esc(s.name)} <span class="meta">· ${s.good}× gut</span></span>${profile.mine[s.key] === "ok" ? '<span class="flag ok meta">✓ markiert</span>' : `<button type="button" class="btn btn-sm btn-outline" data-mk="ok" data-key="${esc(s.key)}" data-name="${esc(s.name)}">vertrage ich</button>`}</div>`).join("") + `</section>`;
+    h += `<p class="fine">Die Analyse vergleicht, wie oft du Essen mit und ohne bestimmte Zutaten schlecht vertragen hast. Sie ist ein Hinweis, keine Diagnose – sprich Auffälligkeiten mit deiner Ärztin oder deinem Arzt ab.</p>`;
   }
+  const openMore = $("#analysis details[open]");
   $("#analysis").innerHTML = h;
+  if (openMore){ const d = $("#analysis details"); if (d) d.open = true; }
 
   const el = $("#histList");
-  if (!history.length){ el.innerHTML = '<h2>Tagebuch</h2><p class="muted" style="margin:0">Noch keine Einträge. Geprüfte Produkte und bewertete Lebensmittel oder Rezepte erscheinen hier.</p>'; return; }
-  el.innerHTML = '<h2>Tagebuch</h2>' + history.map(h => {
-    const ev = evaluate(h.raw, profile);
-    return `<div class="hist" data-id="${h.id}"><i class="c${ev.total}"></i><div class="n"><b>${esc(h.name)}</b><small>${fmtDate(h.ts)} · ${SRC[h.src]||""}${h.reaction ? " · " + REACT[h.reaction] : " · noch nicht bewertet"}</small></div><span class="muted">›</span></div>`;
-  }).join("");
+  if (!history.length){ el.innerHTML = `<div class="card empty">${SVG.book}<b>Noch keine Einträge</b>Geprüfte Produkte und bewertete Lebensmittel oder Rezepte landen hier.<br><button type="button" class="btn btn-secondary" data-go="check">Erstes Produkt prüfen</button></div>`; return; }
+  let out = "", lastDay = "";
+  for (const x of history){
+    const day = dayLabel(x.ts);
+    if (day !== lastDay){ out += (lastDay ? "</ul>" : "") + `<div class="day">${esc(day)}</div><ul class="list">`; lastDay = day; }
+    const ev = evaluate(x.raw, profile);
+    const rx = x.reaction ? `<span class="rx ${x.reaction}">${REACT[x.reaction]}</span>` : `<span class="rx none">Noch nicht bewertet</span>`;
+    out += `<li><button type="button" class="row-btn hist" data-id="${x.id}">${st(ev.total)}<span class="sr-only">${LABEL[ev.total]}:</span><span class="txt"><b class="ell">${esc(x.name)}</b><small>${fmtTime(x.ts)} · ${SRC[x.src]||""} · ${rx}</small></span>${SVG.chev}</button></li>`;
+  }
+  el.innerHTML = `<div class="card flush">${out}</ul></div>`;
 }
 $("#analysis").addEventListener("click", ev => {
   const act = ev.target.closest("[data-act]");
@@ -528,50 +718,125 @@ $("#analysis").addEventListener("click", ev => {
   handleActions(ev, () => {});
 });
 $("#histList").addEventListener("click", e => {
+  const g = e.target.closest("[data-go]"); if (g){ goView(g.dataset.go); return; }
   const row = e.target.closest(".hist"); if (!row) return;
   const h = history.find(x => x.id === row.dataset.id); if (!h) return;
   openEntrySheet(h);
 });
-function openEntrySheet(h){
-  const inn = $("#sheetIn");
-  inn.innerHTML = `<div class="row" style="justify-content:space-between"><button class="ghost" id="shDel" style="flex:none;color:var(--bad)">Löschen</button><button class="ghost" id="shClose" style="flex:none">Fertig</button></div><div id="shRes"></div>`;
-  showResult(h, $("#shRes"));
-  openSheet();
-  inn.onclick = null;
-  $("#shClose").onclick = closeSheet;
-  $("#shDel").onclick = () => {
-    const b = $("#shDel");
-    if (b.dataset.c){ history = history.filter(x => x.id !== h.id); saveHistory(); renderDiary(); closeSheet(); }
-    else { b.dataset.c = "1"; b.textContent = "Wirklich löschen?"; }
-  };
-}
-function openSheet(){ $("#sheet").classList.add("on"); }
-function closeSheet(){ $("#sheet").classList.remove("on"); renderDiary(); renderFoods(); renderRecipes(); renderProfile(); }
-$("#sheet").addEventListener("click", e => { if (e.target.id === "sheet") closeSheet(); });
 
 /* ---------- Profil ---------- */
 function renderProfile(){
-  $("#profCats").innerHTML = `<h2>Meine Unverträglichkeiten</h2>` + KEYS.map(c => `
-    <div class="pblock">
-      <div class="toggle" style="border:0;padding:0"><div class="t"><b>${CATS[c]}</b><span>${CAT_DESC[c]}</span></div><label class="sw"><input type="checkbox" data-on="${c}"${profile.on[c] ? " checked" : ""}><span></span></label></div>
-      ${profile.on[c] ? `<div class="sens">${[1,2,3].map(s => `<button type="button" data-sens="${c}" data-s="${s}" class="${profile.sens[c]===s?"on":""}">${["leicht","mittel","stark"][s-1]}</button>`).join("")}</div><div class="sensHint">${SENS_TXT[c][profile.sens[c]]}</div>` : ""}
-    </div>`).join("");
+  $("#profCats").innerHTML = GROUPS.map(G => {
+    const cs = CAT_DEF.filter(d => d.grp === G.g), n = cs.filter(d => profile.on[d.k]).length;
+    return `<section class="card" aria-labelledby="grp-${G.g}">
+      <div class="group-hd"><h2 class="h2" id="grp-${G.g}">${G.title}</h2><span class="count">${n ? n + " aktiv" : "keine aktiv"}</span></div>
+      <p class="hint" style="margin-top:2px">${G.hint}</p>
+      <ul class="cat-list">${cs.map(d => { const c = d.k, on = profile.on[c]; return `
+        <li class="cat-row">
+          <label class="cat-toggle"><span class="txt"><b>${esc(d.n)}</b><small>${esc(CAT_DESC[c])}</small></span><span class="sw"><input type="checkbox" role="switch" data-on="${c}"${on ? " checked" : ""}><span></span></span></label>
+          ${on ? `<div class="sens"><div class="seg" role="radiogroup" aria-label="Empfindlichkeit ${esc(d.n)}">${[1,2,3].map(s => `<button type="button" role="radio" aria-checked="${profile.sens[c]===s}" data-sens="${c}" data-s="${s}">${SENS_LBL[s-1]}</button>`).join("")}</div><p class="sens-hint">${esc(SENS_TXT[c][profile.sens[c]])}</p></div>` : ""}
+        </li>`; }).join("")}</ul>
+    </section>`;
+  }).join("");
   const m = Object.entries(profile.mine);
   $("#mineList").innerHTML = m.length
-    ? m.sort((a,b) => a[0].localeCompare(b[0])).map(([k, v]) => `<div class="mine"><span>${esc(k)}</span><span class="flag" style="color:${v==="ok"?"var(--ok)":"var(--bad)"}">${v==="ok"?"vertrage ich":"vertrage ich nicht"}</span><button type="button" class="ghost" data-del="${esc(k)}" style="flex:none;padding:4px 8px">✕</button></div>`).join("")
-    : `<p class="small muted" style="margin:0">Noch keine. Markiere Zutaten in den Ergebnissen oder in der Lebensmittel-Liste.</p>`;
+    ? m.sort((a,b) => a[0].localeCompare(b[0])).map(([k, v]) => `<div class="mine-row"><span class="name">${esc(k)}</span><span class="flag ${v === "ok" ? "ok" : "bad"}" style="font-size:var(--fs-sm)">${v==="ok"?"✓ vertrage ich":"✕ vertrage ich nicht"}</span><button type="button" class="icon-btn" data-del="${esc(k)}" aria-label="${esc(k)} entfernen">${SVG.x}</button></div>`).join("")
+    : `<p class="meta">Noch keine. Markiere Zutaten im Ergebnis oder in der Lebensmittel-Liste.</p>`;
 }
-$("#profCats").addEventListener("change", e => { const c = e.target.dataset.on; if (!c) return; profile.on[c] = e.target.checked; saveProfile(); refreshAll(); });
-$("#profCats").addEventListener("click", e => { const b = e.target.closest("[data-sens]"); if (!b) return; profile.sens[b.dataset.sens] = +b.dataset.s; saveProfile(); refreshAll(); });
-$("#mineList").addEventListener("click", e => { const b = e.target.closest("[data-del]"); if (!b) return; delete profile.mine[b.dataset.del]; saveProfile(); refreshAll(); });
-function renderSub(){ const a = activeCats(); $("#sub").textContent = a.length ? "Profil: " + a.map(c => CATS[c] + (profile.sens[c] !== 2 ? " (" + ["leicht","","stark"][profile.sens[c]-1] + ")" : "")).join(" · ") : "Kein Profil aktiv – tippe auf Profil"; }
+$("#profCats").addEventListener("change", e => {
+  const c = e.target.dataset.on; if (!c) return;
+  profile.on[c] = e.target.checked; saveProfile(); refreshAll();
+  restoreFocus($("#profCats"), `[data-on="${c}"]`);
+});
+$("#profCats").addEventListener("click", e => {
+  const b = e.target.closest("[data-sens]"); if (!b) return;
+  profile.sens[b.dataset.sens] = +b.dataset.s; saveProfile(); refreshAll();
+  restoreFocus($("#profCats"), `[data-sens="${b.dataset.sens}"][data-s="${b.dataset.s}"]`);
+});
+$("#mineList").addEventListener("click", e => { const b = e.target.closest("[data-del]"); if (!b) return; delete profile.mine[b.dataset.del]; saveProfile(); refreshAll(); toast("Markierung entfernt"); });
+function renderSub(){
+  const a = activeCats(), max = 4;
+  const p = $("#profPill");
+  p.setAttribute("aria-label", a.length ? "Dein Profil: " + a.map(c => CATS[c]).join(", ") + ". Ändern" : "Kein Profil aktiv. Profil einrichten");
+  p.innerHTML = a.length
+    ? `${SVG.user}<span class="codes" aria-hidden="true">${a.slice(0, max).map(c => `<span class="badge">${esc(CAT[c].short)}</span>`).join("")}${a.length > max ? `<span class="badge">+${a.length - max}</span>` : ""}</span>`
+    : `${SVG.user}<span aria-hidden="true">Profil wählen</span>`;
+}
+$("#profPill").addEventListener("click", () => goView("prof"));
+
+/* ---------- Onboarding ---------- */
+let onbStep = 1, onbSel = new Set();
+function showOnb(fromProfile){
+  onbSel = new Set(fromProfile ? activeCats() : []);
+  onbStep = 1; renderOnb(); $("#onb").hidden = false; document.body.classList.add("lock");
+}
+function closeOnb(){ $("#onb").hidden = true; document.body.classList.remove("lock"); }
+function renderOnb(){
+  const o = $("#onb");
+  const dots = `<div class="onb-steps" aria-label="Schritt ${onbStep} von 2"><i class="on"></i><i class="${onbStep === 2 ? "on" : ""}"></i></div>`;
+  if (onbStep === 1){
+    o.innerHTML = `<div class="onb-in"><div class="onb-body">
+      <img class="logo" src="icon-192.png" alt="">
+      <h1 id="onbTitle" tabindex="-1">Willkommen bei Verträglich</h1>
+      <p class="lead">Scanne Lebensmittel und sieh sofort, ob sie zu dir passen – bei Unverträglichkeiten und Allergien.</p>
+      <ul class="feat">
+        <li><span class="ico">${SVG.scan}</span><span><b>Prüfen in Sekunden</b><span>Barcode scannen oder Zutatenliste fotografieren – mit Ampel und Begründung.</span></span></li>
+        <li><span class="ico">${SVG.bowl}</span><span><b>Passende Rezepte</b><span>Nur Gerichte, die zu deinem Profil passen.</span></span></li>
+        <li><span class="ico">${SVG.chart}</span><span><b>Tagebuch mit Analyse</b><span>Erkennt Muster in dem, was du schlecht verträgst.</span></span></li>
+      </ul>
+      <p class="hint" style="margin-top:var(--s5)">Deine Daten bleiben nur auf diesem Gerät.</p>
+    </div>
+    <div class="onb-foot"><button type="button" class="btn btn-primary btn-lg btn-block" data-onb="next">Los geht’s</button><button type="button" class="btn-link" data-onb="skip">Überspringen</button></div></div>`;
+  } else {
+    const grp = G => `<h2>${G.title}</h2><div class="pick" role="group" aria-label="${G.title}">${CAT_DEF.filter(d => d.grp === G.g).map(d =>
+      `<button type="button" aria-pressed="${onbSel.has(d.k)}" data-pick="${d.k}">${SVG.check}${esc(d.n)}</button>`).join("")}</div>`;
+    const n = onbSel.size;
+    o.innerHTML = `<div class="onb-in"><div class="onb-body">${dots}
+      <h1 id="onbTitle" tabindex="-1">Was verträgst du nicht?</h1>
+      <p class="lead">Wähle alles aus, was auf dich zutrifft. Feinjustieren und ändern kannst du es jederzeit im Profil.</p>
+      ${GROUPS.map(grp).join("")}
+    </div>
+    <div class="onb-foot"><button type="button" class="btn btn-primary btn-lg btn-block" data-onb="done"${n ? "" : ' aria-disabled="true"'}>${n ? `Fertig – ${n} ausgewählt` : "Wähle mindestens eins aus"}</button><button type="button" class="btn-link" data-onb="skip">Später einrichten</button></div></div>`;
+  }
+  const t = $("#onbTitle"); if (t) t.focus({preventScroll:true});
+  o.scrollTop = 0;
+}
+$("#onb").addEventListener("click", e => {
+  const p = e.target.closest("[data-pick]");
+  if (p){
+    const k = p.dataset.pick; onbSel.has(k) ? onbSel.delete(k) : onbSel.add(k);
+    p.setAttribute("aria-pressed", onbSel.has(k));
+    const d = $('#onb [data-onb="done"]'), n = onbSel.size;
+    d.textContent = n ? `Fertig – ${n} ausgewählt` : "Wähle mindestens eins aus";
+    if (n) d.removeAttribute("aria-disabled"); else d.setAttribute("aria-disabled", "true");
+    return;
+  }
+  const b = e.target.closest("[data-onb]"); if (!b) return;
+  const a = b.dataset.onb;
+  if (a === "next"){ onbStep = 2; renderOnb(); }
+  else if (a === "skip"){ if (!hasStoredProfile) saveProfile(); closeOnb(); refreshAll(); toast("Dein Profil kannst du jederzeit unter „Profil“ einrichten"); }
+  else if (a === "done"){
+    if (!onbSel.size){ toast("Tippe auf alles, was du nicht verträgst"); return; }
+    KEYS.forEach(c => profile.on[c] = onbSel.has(c));
+    saveProfile(); closeOnb(); goView("check"); refreshAll();
+    toast("Profil gespeichert – scanne dein erstes Produkt");
+    $("#scanBtn").focus({preventScroll:true});
+  }
+});
+$("#onbAgain").addEventListener("click", () => showOnb(true));
 
 /* ---------- Navigation ---------- */
-document.querySelectorAll("nav button").forEach(b => b.addEventListener("click", () => {
-  document.querySelectorAll("nav button").forEach(x => x.classList.toggle("on", x === b));
-  document.querySelectorAll(".view").forEach(v => v.classList.toggle("on", v.id === "v-" + b.dataset.v));
-  if (b.dataset.v !== "check") stopScan();
+const TITLES = {check:"Prüfen", foods:"Lebensmittel", recipes:"Rezepte", diary:"Tagebuch", prof:"Profil"};
+function goView(v){
+  if (!TITLES[v]) return;
+  $$(".tabbar button").forEach(x => { if (x.dataset.v === v) x.setAttribute("aria-current", "page"); else x.removeAttribute("aria-current"); });
+  $$(".view").forEach(s => s.classList.toggle("on", s.id === "v-" + v));
+  $("#viewTitle").textContent = TITLES[v];
+  document.title = TITLES[v] + " – Verträglich";
+  if (v !== "check") stopScan();
   window.scrollTo(0, 0);
-}));
+}
+$$(".tabbar button").forEach(b => b.addEventListener("click", () => goView(b.dataset.v)));
 
 load(); renderCats(); renderMeals(); refreshAll();
+if (!hasStoredProfile && !history.length) showOnb(false);
