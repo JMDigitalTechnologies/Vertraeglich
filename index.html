@@ -138,6 +138,9 @@ nav button{font-size:11px;padding:8px 2px 10px}
 .mine{display:flex;align-items:center;gap:8px;border-top:1px solid var(--line);padding:8px 0}
 .mine:first-child{border-top:0}
 .mine span{flex:1}
+.cam{position:relative;width:100%;aspect-ratio:4/3;border-radius:12px;overflow:hidden;background:#000}
+.cam video{width:100%;height:100%;object-fit:cover;display:block}
+.cam .frame{position:absolute;left:10%;right:10%;top:32%;bottom:32%;border:3px solid rgba(255,255,255,.9);border-radius:10px;box-shadow:0 0 0 999px rgba(0,0,0,.35)}
 .chk{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--muted);margin-top:8px}
 </style>
 </head>
@@ -158,9 +161,12 @@ nav button{font-size:11px;padding:8px 2px 10px}
       Barcode scannen
     </button>
     <div id="scanWrap" style="display:none;margin-top:12px">
-      <div id="reader" style="width:100%;border-radius:12px;overflow:hidden;background:#000"></div>
-      <button class="ghost" id="scanStop" type="button" style="width:100%;margin-top:6px">Scannen abbrechen</button>
+      <div class="cam"><video id="video" playsinline muted autoplay></video><div class="frame"></div></div>
+      <div id="scanStatus" class="meta" style="text-align:center;margin-top:6px"></div>
+      <button class="ghost" id="scanStop" type="button" style="width:100%;margin-top:2px">Scannen abbrechen</button>
     </div>
+    <input id="bcPhoto" type="file" accept="image/*" style="display:none">
+    <button class="ghost" id="bcPhotoBtn" type="button" style="width:100%;margin-top:4px;color:var(--brand)">Klappt nicht? Barcode fotografieren</button>
     <div class="row" style="margin-top:10px">
       <input type="text" id="eanIn" inputmode="numeric" placeholder="Barcode-Nummer eintippen">
       <button id="eanBtn" style="flex:none">Suchen</button>
@@ -249,8 +255,8 @@ nav button{font-size:11px;padding:8px 2px 10px}
 <div class="sheet" id="sheet"><div class="in" id="sheetIn"></div></div>
 <div class="toast" id="toast"></div>
 
-<script src="data.js?v=3"></script>
-<script src="engine.js?v=3"></script>
-<script src="app.js?v=3"></script>
+<script src="data.js?v=4"></script>
+<script src="engine.js?v=4"></script>
+<script src="app.js?v=4"></script>
 </body>
 </html>

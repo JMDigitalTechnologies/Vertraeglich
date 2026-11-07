@@ -113,7 +113,6 @@ function handleActions(ev, rerender){
 
 /* ---------- Texterkennung (Tesseract.js) ---------- */
 const TESS_SRC = "https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js";
-const SCAN_SRC = "https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js";
 let ocrWorker = null;
 function loadScript(src){
   return new Promise((res, rej) => { const s = document.createElement("script"); s.src = src; s.onload = res; s.onerror = () => rej(new Error("script")); document.head.appendChild(s); });
@@ -175,30 +174,107 @@ $("#photoOcr").addEventListener("change", async e => {
 });
 
 /* ---------- Barcode + Open Food Facts ---------- */
-let scanner = null, scanning = false;
+/* Erkennung: natives BarcodeDetector (falls vorhanden), sonst ZXing-C++ als WebAssembly */
+const BD_SRC = "https://fastly.jsdelivr.net/npm/barcode-detector@2/dist/es/pure.min.js";
+const FORMATS = ["ean_13","ean_8","upc_a","upc_e"];
+let detector = null, stream = null, scanning = false, scanTimer = null;
 function info(html){ const el = $("#scanInfo"); if (!html){ el.style.display = "none"; return; } el.innerHTML = html; el.style.display = "block"; }
+function scanStatus(t){ $("#scanStatus").textContent = t; }
+async function getDetector(){
+  if (detector) return detector;
+  try{
+    if ("BarcodeDetector" in window){
+      const sup = await window.BarcodeDetector.getSupportedFormats();
+      if (FORMATS.every(f => sup.includes(f))) return detector = new window.BarcodeDetector({formats: FORMATS});
+    }
+  }catch(e){}
+  const mod = await import(BD_SRC);
+  return detector = new mod.BarcodeDetector({formats: FORMATS});
+}
+function validEan(c){
+  if (!/^\d{8}$|^\d{12,13}$/.test(c)) return false;
+  const d = c.padStart(13, "0").split("").map(Number);
+  const sum = d.slice(0, 12).reduce((s, x, i) => s + x * (i % 2 ? 3 : 1), 0);
+  return (10 - sum % 10) % 10 === d[12] || c.length === 8;
+}
 async function startScan(){
   info(""); $("#result").innerHTML = ""; currentResult = null;
-  try{
-    if (!window.Html5Qrcode) await loadScript(SCAN_SRC);
-    $("#scanWrap").style.display = "block"; $("#scanBtn").style.display = "none";
-    const F = Html5QrcodeSupportedFormats;
-    scanner = scanner || new Html5Qrcode("reader", {formatsToSupport:[F.EAN_13, F.EAN_8, F.UPC_A, F.UPC_E], experimentalFeatures:{useBarCodeDetectorIfSupported:true}, verbose:false});
-    scanning = true;
-    await scanner.start({facingMode:"environment"}, {fps:12, qrbox:(w,h) => ({width:Math.min(300, w*0.85), height:Math.min(150, h*0.5)}), aspectRatio:1.3333},
-      code => { if (!scanning) return; scanning = false; stopScan().then(() => lookup(code)); }, () => {});
-  }catch(e){
-    scanning = false; $("#scanWrap").style.display = "none"; $("#scanBtn").style.display = "";
-    info("Die Kamera konnte nicht gestartet werden. Erlaube den Kamerazugriff (iPhone: Einstellungen → Safari → Kamera) oder tippe die Barcode-Nummer ein.");
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+    info("Dieser Browser erlaubt keinen Kamerazugriff. Nutze „Barcode fotografieren“ oder tippe die Nummer ein."); return;
   }
+  $("#scanWrap").style.display = "block"; $("#scanBtn").style.display = "none";
+  scanStatus("Kamera wird gestartet…");
+  const video = $("#video");
+  try{
+    stream = await navigator.mediaDevices.getUserMedia({audio:false, video:{facingMode:{ideal:"environment"}, width:{ideal:1280}, height:{ideal:720}}});
+    video.srcObject = stream;
+    await video.play();
+  }catch(e){
+    await stopScan();
+    const n = e && e.name;
+    info(n === "NotAllowedError"
+      ? "Kein Kamerazugriff erlaubt. iPhone: Einstellungen → Apps → Safari → Kamera auf „Erlauben“ stellen, dann die Seite neu laden. Alternativ „Barcode fotografieren“."
+      : "Die Kamera konnte nicht gestartet werden (" + esc(n || "Fehler") + "). Nutze „Barcode fotografieren“ oder tippe die Nummer ein.");
+    return;
+  }
+  scanStatus("Scanner wird geladen…");
+  let det;
+  try{ det = await getDetector(); }
+  catch(e){ await stopScan(); info("Die Barcode-Erkennung konnte nicht geladen werden (Internetverbindung?). Tippe die Nummer ein."); return; }
+  scanStatus("Barcode in den Rahmen halten – ca. 15 cm Abstand");
+  scanning = true;
+  let last = null, busy = false;
+  const tick = async () => {
+    if (!scanning) return;
+    if (!busy && video.readyState >= 2){
+      busy = true;
+      try{
+        const res = await det.detect(video);
+        const hit = res.map(r => String(r.rawValue || "").replace(/\D/g, "")).find(validEan);
+        if (hit){
+          if (hit === last || hit.length === 13){ scanning = false; await stopScan(); lookup(hit); return; }
+          last = hit;
+        }
+      }catch(e){}
+      busy = false;
+    }
+    scanTimer = setTimeout(tick, 120);
+  };
+  tick();
 }
 async function stopScan(){
-  scanning = false;
-  try{ if (scanner && scanner.isScanning) await scanner.stop(); }catch(e){}
+  scanning = false; clearTimeout(scanTimer);
+  if (stream){ stream.getTracks().forEach(t => t.stop()); stream = null; }
+  const v = $("#video"); if (v) v.srcObject = null;
   $("#scanWrap").style.display = "none"; $("#scanBtn").style.display = "";
 }
 $("#scanBtn").addEventListener("click", startScan);
 $("#scanStop").addEventListener("click", stopScan);
+
+/* Fallback: Barcode fotografieren */
+$("#bcPhotoBtn").addEventListener("click", () => $("#bcPhoto").click());
+$("#bcPhoto").addEventListener("change", async e => {
+  const file = e.target.files && e.target.files[0]; e.target.value = "";
+  if (!file) return;
+  await stopScan();
+  info('<div class="row" style="justify-content:flex-start;gap:10px"><div class="spin" style="flex:none"></div><span>Barcode wird gelesen…</span></div>');
+  try{
+    const det = await getDetector();
+    const url = URL.createObjectURL(file);
+    const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = url; });
+    let res = await det.detect(img);
+    if (!res.length){
+      const c = document.createElement("canvas"), s = Math.min(1, 1600 / Math.max(img.naturalWidth, img.naturalHeight));
+      c.width = Math.round(img.naturalWidth * s); c.height = Math.round(img.naturalHeight * s);
+      c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+      res = await det.detect(c);
+    }
+    URL.revokeObjectURL(url);
+    const hit = res.map(r => String(r.rawValue || "").replace(/\D/g, "")).find(validEan);
+    if (hit) lookup(hit);
+    else info("Auf dem Foto wurde kein Barcode erkannt. Fotografiere ihn gerade, scharf und formatfüllend – oder tippe die Nummer ein.");
+  }catch(x){ info("Die Barcode-Erkennung konnte nicht geladen werden (Internetverbindung?). Tippe die Nummer ein."); }
+});
 $("#eanBtn").addEventListener("click", () => { const c = $("#eanIn").value.replace(/\D/g,""); if (c.length >= 8) lookup(c); else info("Bitte die komplette Nummer unter dem Barcode eingeben (8–13 Ziffern)."); });
 $("#eanIn").addEventListener("keydown", e => { if (e.key === "Enter") $("#eanBtn").click(); });
 
