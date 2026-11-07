@@ -385,6 +385,66 @@ details.disc[open]>summary .chev{transform:rotate(90deg)}
 /* Toast */
 .toast{position:fixed;left:50%;bottom:calc(var(--nav-h) + var(--safe-b) + var(--s3));transform:translate(-50%, 8px);z-index:40;max-width:calc(100vw - 32px);padding:10px 16px;border-radius:var(--r-lg);background:var(--ink);color:var(--bg);font-size:var(--fs-md);font-weight:500;text-align:center;opacity:0;pointer-events:none;transition:opacity .2s, transform .2s var(--ease)}
 .toast.on{opacity:1;transform:translate(-50%, 0)}
+
+/* ---------- Zusatzfunktionen ---------- */
+.quick{display:flex;flex-wrap:wrap;gap:var(--s2);margin:0 0 var(--s3)}
+#analysisTools .quick{display:grid;grid-template-columns:1fr 1fr;gap:var(--s2)}
+#analysisTools .quick .btn{justify-content:center;min-height:48px;padding-left:var(--s2);padding-right:var(--s2);font-size:var(--fs-sm,14px)}
+#analysisTools .quick .btn:first-child{grid-column:1 / -1}
+.onb-more{margin-top:var(--s3)}
+.quick .btn svg{width:18px;height:18px}
+.tools-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:var(--s2);margin-bottom:var(--s4)}
+.tool{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;min-height:76px;padding:var(--s2);border-radius:var(--r-md,14px);border:1px solid var(--line);background:var(--surface);color:var(--ink);font:inherit;font-size:var(--fs-sm,14px);font-weight:600;cursor:pointer}
+.tool svg{width:24px;height:24px;color:var(--brand-ink)}
+.tool.danger svg{color:var(--bad)}
+.tool:focus-visible{outline:3px solid var(--focus,var(--brand));outline-offset:2px}
+#checkTop{display:flex;flex-direction:column;gap:var(--s2);margin-bottom:var(--s3)}
+#checkTop .feedback{margin:0}
+.banner{width:100%;text-align:left;font:inherit;cursor:pointer;border:0}
+.newhint .actions{display:flex;gap:var(--s2);flex-wrap:wrap}
+.prog-card{display:flex;align-items:center;gap:var(--s3);width:100%;text-align:left;font:inherit;color:inherit;cursor:pointer;margin:0}
+.prog-card .txt{flex:1;display:flex;flex-direction:column;gap:2px}
+.prog-card small{color:var(--ink-2);font-size:var(--fs-sm,14px)}
+.prog-steps{display:flex;gap:4px;flex:none}
+.prog-steps i{width:10px;height:28px;border-radius:5px;background:var(--line)}
+.prog-steps i.on{background:var(--brand)}
+.prog-head .prog-steps{margin-bottom:var(--s2)}
+.prog-head .prog-steps i{width:28px;height:6px}
+.tag-rec{display:inline-block;font-size:11px;font-weight:700;color:var(--brand-ink);background:var(--brand-soft,var(--ok-soft));border-radius:999px;padding:1px 8px;margin-left:4px;vertical-align:2px}
+.onb-feat{margin-top:var(--s3)}
+.sym-row{display:flex;flex-direction:column;gap:6px;padding:var(--s2) 0;border-top:1px solid var(--line)}
+.sym-row:first-child{border-top:0}
+.sym-row .name{font-weight:600}
+.sym-seg button{min-height:40px;font-size:14px}
+.pick.sm button{font-size:14px;min-height:40px}
+.fav-row{display:flex;align-items:center;gap:4px}
+.fav-row .row-btn{flex:1;min-width:0}
+.shop-row{display:flex;align-items:center;gap:var(--s2);padding:var(--s2) 0;border-top:1px solid var(--line)}
+.shop-row:first-child{border-top:0}
+.shop-row label{flex:1;display:flex;align-items:center;gap:var(--s3);min-height:44px;cursor:pointer}
+.shop-row input{width:22px;height:22px;accent-color:var(--brand)}
+.shop-row input:checked + span{text-decoration:line-through;color:var(--ink-2)}
+.pen-row{display:grid;grid-template-columns:1fr 150px;gap:var(--s2);margin-bottom:var(--s2)}
+.btn-link.sm{font-size:var(--fs-sm,14px);min-height:36px}
+.acard{background:#fff;color:#111;border:3px solid var(--bad);border-radius:16px;padding:var(--s4);font-size:19px;line-height:1.45}
+.acard p{margin:0 0 var(--s3)}
+.acard ul{margin:0 0 var(--s3);padding-left:22px}
+.acard li{margin:4px 0;font-weight:700}
+.acard-t{display:flex;gap:8px;align-items:center;font-weight:800;font-size:21px;color:#b42318}
+.acard-t svg{width:26px;height:26px;flex:none}
+.acard-s{font-weight:700;color:#b42318}
+.pname{font-weight:700;font-size:13px;margin:0 2px 0 4px;max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#printArea{display:none}
+@media print{
+  body > *:not(#printArea){display:none !important}
+  body{background:#fff !important;color:#000 !important}
+  #printArea{display:block;font:11pt/1.4 -apple-system,Helvetica,Arial,sans-serif;color:#000}
+  #printArea h1{font-size:18pt;margin:0 0 4pt}
+  #printArea h2{font-size:13pt;margin:14pt 0 4pt;border-bottom:1px solid #999}
+  #printArea table{width:100%;border-collapse:collapse;font-size:9.5pt}
+  #printArea th,#printArea td{border:1px solid #bbb;padding:3pt 5pt;text-align:left;vertical-align:top}
+  #printArea .small{font-size:9pt;color:#444}
+}
 </style>
 </head>
 <body>
@@ -396,6 +456,7 @@ details.disc[open]>summary .chev{transform:rotate(90deg)}
 <main>
 <!-- PRÜFEN -->
 <section class="view on" id="v-check" aria-labelledby="viewTitle">
+  <div id="checkTop" hidden></div>
   <div class="card hero">
     <p class="lead">Scanne den Barcode oder suche das Produkt. Wir prüfen die Zutaten für dein Profil.</p>
     <button class="btn btn-primary btn-lg btn-block" id="scanBtn" type="button">
@@ -424,6 +485,7 @@ details.disc[open]>summary .chev{transform:rotate(90deg)}
     </button>
   </div>
 
+  <div id="quickTools"></div>
   <h2 class="section-title" id="altTitle">Kein Barcode oder nicht gefunden?</h2>
   <div class="card flush">
     <ul class="list" aria-labelledby="altTitle">
@@ -483,6 +545,7 @@ details.disc[open]>summary .chev{transform:rotate(90deg)}
 
 <!-- TAGEBUCH -->
 <section class="view" id="v-diary" aria-labelledby="viewTitle">
+  <div id="analysisTools"></div>
   <div class="card" id="analysis"></div>
   <h2 class="section-title">Einträge</h2>
   <div id="histList"></div>
@@ -491,7 +554,9 @@ details.disc[open]>summary .chev{transform:rotate(90deg)}
 <!-- PROFIL -->
 <section class="view" id="v-prof" aria-labelledby="viewTitle">
   <p class="lead" style="margin:0 var(--s1)">Schalte ein, was du nicht verträgst. Bewertet und angezeigt wird nur, was aktiv ist.</p>
+  <section class="card" id="peopleCard" hidden></section>
   <div id="profCats"></div>
+  <section class="card" id="featCard"></section>
   <div class="card">
     <h2 class="h2">Meine Zutaten</h2>
     <p class="hint" style="margin:4px 0 var(--s2)">Deine Markierungen „vertrage ich“ / „vertrage ich nicht“. Sie gelten für alle Produkte und Rezepte.</p>
@@ -526,10 +591,11 @@ details.disc[open]>summary .chev{transform:rotate(90deg)}
 </div>
 <div class="onb" id="onb" role="dialog" aria-modal="true" aria-labelledby="onbTitle" hidden></div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
+<div id="printArea" aria-hidden="true"></div>
 
 <script>
 /* Auto-Update: bei jedem Öffnen prüfen, ob es eine neuere Version gibt, und dann neu laden */
-const APP_VERSION = 10;
+const APP_VERSION = 11;
 (function(){
   document.getElementById("ver").textContent = "Version " + APP_VERSION;
   let checking = false;
@@ -553,8 +619,10 @@ const APP_VERSION = 10;
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") checkUpdate(); });
 })();
 </script>
-<script src="data.js?v=10"></script>
-<script src="engine.js?v=10"></script>
-<script src="app.js?v=10"></script>
+<script src="config.js?v=11"></script>
+<script src="data.js?v=11"></script>
+<script src="engine.js?v=11"></script>
+<script src="app.js?v=11"></script>
+<script src="features.js?v=11"></script>
 </body>
 </html>

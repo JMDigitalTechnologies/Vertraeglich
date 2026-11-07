@@ -44,6 +44,12 @@ const SVG = {
   bowl:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 13h16a8 8 0 0 1-16 0z"/><path d="M9 9c0-2 2-2 2-4M13 9c0-2 2-2 2-4"/></svg>',
   scan:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7V5a1 1 0 0 1 1-1h2M17 4h2a1 1 0 0 1 1 1v2M20 17v2a1 1 0 0 1-1 1h-2M7 20H5a1 1 0 0 1-1-1v-2"/><path d="M7 8v8M10 8v8M13 8v8M16 8v8"/></svg>',
   user:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>',
+  cart:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4h2l2.4 11h10.2L20 8H6.2"/><circle cx="9" cy="19.5" r="1.5"/><circle cx="17" cy="19.5" r="1.5"/></svg>',
+  star:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 2.8 5.8 6.2.9-4.5 4.4 1 6.2L12 17.4l-5.5 2.9 1-6.2L3 9.7l6.2-.9z"/></svg>',
+  starFill:'<svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 2.8 5.8 6.2.9-4.5 4.4 1 6.2L12 17.4l-5.5 2.9 1-6.2L3 9.7l6.2-.9z"/></svg>',
+  card:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 10h6M7 14h10"/></svg>',
+  sos:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v18M3 12h18"/><circle cx="12" cy="12" r="9.5"/></svg>',
+  edit:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg>',
   chart:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19V5M4 19h16"/><path d="M8 15l3-4 3 2 5-6"/></svg>'
 };
 const st = (lv, cls) => `<span class="st lv${lv}${cls ? " " + cls : ""}" aria-hidden="true">${SYM[lv]}</span>`;
@@ -81,17 +87,17 @@ function migrateEntry(e){
   return {id:e.id, ts:e.ts, name:e.name, src:e.src, code:e.code||null, reaction:null,
     raw:{mode:"label", items:e.items.filter(i => !i.trace).map(i => /^Allergenkennzeichnung/.test(i.name) ? {n:i.name, fix:true} : {n:i.name}), spuren: tr ? tr.name : null}};
 }
-function saveProfile(){ LS.set("vt_profile", profile); hasStoredProfile = true; }
+function saveProfile(){ LS.set("vt_profile", profile); hasStoredProfile = true; if (typeof syncPerson === "function") syncPerson(); }
 function saveHistory(){ history = history.slice(0, 300); LS.set("vt_history", {items: history}); }
 const activeCats = () => KEYS.filter(c => profile.on[c]);
 
 function addEntry(name, raw, src, code){
-  const e = {id: Date.now().toString(36) + Math.random().toString(36).slice(2,6), ts: Date.now(), name, src, code: code||null, raw, reaction: null};
+  const e = {id: Date.now().toString(36) + Math.random().toString(36).slice(2,6), ts: Date.now(), name, src, code: code||null, raw, reaction: null, who: (typeof people !== "undefined" ? people.active : "main")};
   history.unshift(e); saveHistory();
   return e;
 }
 function refreshAll(){
-  renderSub(); renderFoods(); renderRecipes(); renderDiary(); renderProfile(); renderRecent();
+  renderSub(); renderFoods(); renderRecipes(); renderDiary(); renderProfile(); renderRecent(); renderCheckExtras(); renderFeatures();
   if (sheetCtx && sheetCtx.type === "entry" && $("#shRes")){ const e = history.find(x => x.id === sheetCtx.id); if (e) showResult(e, $("#shRes")); }
 }
 
@@ -118,7 +124,7 @@ function metaTxt(i){
 }
 const worstOf = (i, cats) => Math.max(0, ...cats.map(c => i.lvl[c]));
 function showResult(e, el){
-  const ev = evaluate(e.raw, profile), cats = ev.cats;
+  const ev = evaluate(e.raw, P()), cats = ev.cats;
   const relevant = i => i.mine === "bad" || i.mine === "ok" || cats.some(c => i.lvl[c] > 0 || i.r[c] > 0);
   const flagged = ev.items.filter(relevant).sort((a,b) => worstOf(b, cats) - worstOf(a, cats));
   const sortedCats = cats.slice().sort((a,b) => ev.cat[b] - ev.cat[a]);
@@ -140,6 +146,7 @@ function showResult(e, el){
   <p class="reason">${esc(reasonText(ev))}</p>
   ${noProfile ? `<button type="button" class="btn btn-secondary btn-block" data-go="prof">Profil einrichten</button>` : `<div class="chips" aria-label="Bewertung je Kategorie">${chips}</div>`}
   ${flagged.length ? `<section class="block"><h3 class="block-title">Auffällige Zutaten <span class="n">(${flagged.length})</span></h3><ul class="list">${flagged.map(ingHtml).join("")}</ul></section>` : ""}
+  ${resultExtras(e, ev)}
   <section class="block">
     <h3 class="block-title">Schon gegessen? Wie hast du es vertragen?</h3>
     ${reactHtml(e)}
@@ -153,6 +160,7 @@ function showResult(e, el){
   el.onclick = ev2 => {
     const go = ev2.target.closest("[data-go]");
     if (go){ closeSheet(); goView(go.dataset.go); return; }
+    if (extrasClick(ev2, e, el, ev)) return;
     handleActions(ev2, () => showResult(e, el));
   };
 }
@@ -193,7 +201,7 @@ function closeSheet(){
   const s = $("#sheet"); if (s.hidden) return;
   s.hidden = true; s.classList.remove("on"); document.body.classList.remove("lock");
   sheetCtx = null; $("#sheetIn").onclick = null;
-  renderDiary(); renderFoods(); renderRecipes(); renderProfile(); renderRecent();
+  renderDiary(); renderFoods(); renderRecipes(); renderProfile(); renderRecent(); renderCheckExtras();
   if (sheetReturn && document.contains(sheetReturn)) sheetReturn.focus({preventScroll:true});
   sheetReturn = null;
 }
@@ -484,6 +492,33 @@ $("#scanInfo").addEventListener("click", onHitsClick);
 $("#manualHits").addEventListener("click", onHitsClick);
 
 const OFF_FIELDS = "product_name,product_name_de,generic_name_de,brands,ingredients_text_de,ingredients_text,allergens_tags,traces_tags,labels_tags";
+function productName(p, code){
+  return [p.brands && String(p.brands).split(",")[0].trim(), p.product_name_de || p.product_name || p.generic_name_de].filter(Boolean).join(" – ") || ("Produkt " + code);
+}
+/* Open-Food-Facts-Produkt → Bewertungsgrundlage (null, wenn weder Zutaten noch Allergene bekannt) */
+function productToRaw(p, code){
+  const name = productName(p, code || p.code);
+  const txt = (p.ingredients_text_de || p.ingredients_text || "").replace(/_/g, "");
+  const labels = p.labels_tags || [], allergens = p.allergens_tags || [], traces = p.traces_tags || [];
+  const gf = labels.some(l => /no-gluten|gluten-free|glutenfrei/.test(l));
+  const lf = labels.some(l => /no-lactose|lactose-free|laktosefrei/.test(l));
+  if (!txt.trim() && !allergens.length) return null;
+  const {parts, spuren} = splitIngredients(txt);
+  const items = parts.map(n => ({n}));
+  const probe = evaluate({mode:"label", items}, {on:Object.fromEntries(KEYS.map(c => [c, true])), sens:{}, mine:{}});
+  /* Allergenkennzeichnung als zusätzliche Sicherheitsstufe, falls die Zutatenliste es nicht schon abdeckt */
+  for (const tag of allergens){
+    const c = OFF_ALLERGENS[tag]; if (!c || (c === "g" && gf)) continue;
+    if (probe.items.some(i => i.r[c] >= 2)) continue;
+    const x = Object.fromEntries(KEYS.map(k => [k, 0])); x[c] = 2;
+    if (c === "m" && !lf) x.l = 1;
+    items.push({n:"Allergenkennzeichnung: " + ALLERGEN_WORD[c], fix:true, x, note:"Laut Allergenkennzeichnung enthalten"});
+  }
+  const trWords = traces.map(t => OFF_ALLERGENS[t]).filter(Boolean).map(c => ALLERGEN_WORD[c]);
+  let tr = spuren;
+  if (trWords.length) tr = (tr ? tr + " " : "") + "Kann Spuren von " + trWords.join(", ") + " enthalten";
+  return {name, full: !!txt.trim(), raw: {mode:"label", items, spuren: tr, gf, lf}};
+}
 async function lookup(code, where){
   try{ if (navigator.vibrate) navigator.vibrate(60); }catch(e){}
   const el = outEl(where), show = (h, k) => setFb(el, h, k);
@@ -500,32 +535,16 @@ async function lookup(code, where){
     return;
   }
   const p = j.product;
-  const name = [p.brands && p.brands.split(",")[0].trim(), p.product_name_de || p.product_name || p.generic_name_de].filter(Boolean).join(" – ") || ("Produkt " + code);
-  const txt = (p.ingredients_text_de || p.ingredients_text || "").replace(/_/g, "");
-  const labels = p.labels_tags || [], allergens = p.allergens_tags || [], traces = p.traces_tags || [];
-  const gf = labels.some(l => /no-gluten|gluten-free|glutenfrei/.test(l));
-  const lf = labels.some(l => /no-lactose|lactose-free|laktosefrei/.test(l));
-  if (!txt.trim() && !allergens.length){
-    show(fbHtml(esc(name) + " – ohne Zutatenliste", "Das Produkt ist bekannt, aber die Zutaten fehlen. Fotografiere die Zutatenliste, um es zu prüfen.", ALT_ACTIONS), "warn");
+  const pr = productToRaw(p, code);
+  if (!pr){
+    const nm = productName(p, code);
+    show(fbHtml(esc(nm) + " – ohne Zutatenliste", "Das Produkt ist bekannt, aber die Zutaten fehlen. Fotografiere die Zutatenliste, um es zu prüfen.", ALT_ACTIONS), "warn");
     return;
   }
-  const {parts, spuren} = splitIngredients(txt);
-  const items = parts.map(n => ({n}));
-  const probe = evaluate({mode:"label", items}, {on:Object.fromEntries(KEYS.map(c => [c, true])), sens:{}, mine:{}});
-  /* Allergenkennzeichnung als zusätzliche Sicherheitsstufe, falls die Zutatenliste es nicht schon abdeckt */
-  for (const tag of allergens){
-    const c = OFF_ALLERGENS[tag]; if (!c || (c === "g" && gf)) continue;
-    if (probe.items.some(i => i.r[c] >= 2)) continue;
-    const x = Object.fromEntries(KEYS.map(k => [k, 0])); x[c] = 2;
-    if (c === "m" && !lf) x.l = 1;
-    items.push({n:"Allergenkennzeichnung: " + ALLERGEN_WORD[c], fix:true, x, note:"Laut Allergenkennzeichnung enthalten"});
-  }
-  const trWords = traces.map(t => OFF_ALLERGENS[t]).filter(Boolean).map(c => ALLERGEN_WORD[c]);
-  let tr = spuren;
-  if (trWords.length) tr = (tr ? tr + " " : "") + "Kann Spuren von " + trWords.join(", ") + " enthalten";
+  const name = pr.name, txt = pr.full ? "x" : "";
   show("");
   const note = txt.trim() ? "" : "Nur die Allergenkennzeichnung ist hinterlegt, keine vollständige Zutatenliste – Histamin, Fructose & Co. sind deshalb nicht bewertbar.";
-  const e = addEntry(name, {mode:"label", items, spuren: tr, gf, lf}, "barcode", code);
+  const e = addEntry(name, pr.raw, "barcode", code);
   renderDiary(); renderRecent();
   openEntrySheet(e, {fromCheck:true, note});
 }
@@ -550,10 +569,10 @@ $("#txtBtn").addEventListener("click", () => {
 
 /* Zuletzt geprüft */
 function renderRecent(){
-  const list = history.filter(h => ["barcode","text","foto"].includes(h.src)).slice(0, 3);
+  const list = myEntries().filter(h => ["barcode","text","foto"].includes(h.src)).slice(0, 3);
   if (!list.length){ $("#recent").innerHTML = ""; return; }
   $("#recent").innerHTML = `<h2 class="section-title">Zuletzt geprüft</h2><div class="card flush"><ul class="list">${list.map(h => {
-    const ev = evaluate(h.raw, profile);
+    const ev = evaluate(h.raw, P());
     return `<li><button type="button" class="row-btn" data-id="${h.id}">${st(ev.total)}<span class="txt"><b class="ell">${esc(h.name)}</b><small>${LABEL[ev.total]} · ${fmtDate(h.ts)}</small></span>${SVG.chev}</button></li>`;
   }).join("")}</ul></div>`;
 }
@@ -562,7 +581,7 @@ $("#recent").addEventListener("click", e => { const b = e.target.closest("[data-
 /* ---------- Lebensmittel ---------- */
 let foodCat = "Alle";
 function badgesHtml(lv, cats){ return `<span class="badges">${cats.map(c => badge(c, lv[c])).join("")}</span>`; }
-function foodLevels(f){ const lv = {}; for (const c of KEYS) lv[c] = finalLevel(c, f[c], false, profile.sens[c]); const k = ingKey(f.n); if (profile.mine[k] === "ok") KEYS.forEach(c => lv[c] = 0); return lv; }
+function foodLevels(f){ const lv = {}, pp = P(); for (const c of KEYS) lv[c] = finalLevel(c, f[c], false, pp.sens[c]); const k = ingKey(f.n); if (profile.mine[k] === "ok") KEYS.forEach(c => lv[c] = 0); return lv; }
 function renderCats(){
   const ks = ["Alle", ...new Set(FOODS.map(f => f.k))];
   $("#cats").innerHTML = ks.map(k => `<button type="button" aria-pressed="${k===foodCat}" data-k="${esc(k)}">${esc(k)}</button>`).join("");
@@ -628,7 +647,7 @@ $("#showWarn").addEventListener("change", () => renderRecipes());
 function renderRecipes(){
   const open = new Set([...document.querySelectorAll("#recipeList details[open]")].map(d => d.dataset.i));
   const showWarn = $("#showWarn").checked;
-  const all = RECIPES.map((r, i) => ({r, i, ev: evaluate(recipeRaw(r), profile)})).filter(x => meal === "alle" || x.r.m.includes(meal));
+  const all = RECIPES.map((r, i) => ({r, i, ev: evaluate(recipeRaw(r), P())})).filter(x => meal === "alle" || x.r.m.includes(meal));
   const shown = all.filter(x => x.ev.total === 0 || (showWarn && x.ev.total === 1)).sort((a,b) => a.ev.total - b.ev.total);
   const hidden = all.length - shown.length;
   const html = shown.map(({r, i, ev}) => {
@@ -639,6 +658,7 @@ function renderRecipes(){
     return `<article class="card recipe"><div class="recipe-hd">${st(ev.total)}<span class="sr-only">${LABEL[ev.total]}:</span><div style="flex:1;min-width:0"><h3>${esc(r.t)}</h3><p class="meta">${r.m.map(m => MEALS[m]).join(" · ")} · ${r.min} Min.</p></div></div>
       ${ev.total ? `<p class="reason">${esc(reasonText(ev))}</p>` : ""}
       <details class="disc" data-i="${i}"${open.has(String(i)) ? " open" : ""}><summary>${SVG.chev}Zutaten &amp; Zubereitung</summary><h4>Zutaten</h4><ul>${zl}</ul><h4>Zubereitung</h4><ol>${r.s.map(s => `<li>${esc(s)}</li>`).join("")}</ol>
+      ${F("lists") ? `<button type="button" class="btn btn-sm btn-outline" data-shop-r="${i}" style="margin-top:var(--s2)">${SVG.cart}Zutaten auf die Einkaufsliste</button>` : ""}
       <h4>Nachgekocht? Wie hast du es vertragen?</h4>
       ${reactHtml(last || null, k => `data-rr="${k}" data-ri="${i}"`)}</details></article>`;
   }).join("");
@@ -646,6 +666,8 @@ function renderRecipes(){
     (hidden ? `<p class="meta" style="margin:var(--s3) var(--s1) 0">${hidden} Rezept${hidden>1?"e":""} ausgeblendet, weil sie nicht zu deinem Profil passen${showWarn ? "" : " oder Vorsicht-Zutaten enthalten"}.</p>` : "");
 }
 $("#recipeList").addEventListener("click", ev => {
+  const sh = ev.target.closest("[data-shop-r]");
+  if (sh){ const n = addShop(RECIPES[+sh.dataset.shopR].z.map(z => recipeItem(z).n).filter(x => !/^(salz|pfeffer|wasser)/i.test(x))); toast(n ? n + " Zutaten auf die Einkaufsliste gesetzt" : "Steht schon alles auf der Liste"); renderCheckExtras(); return; }
   const b = ev.target.closest("[data-rr]"); if (!b) return;
   const i = +b.dataset.ri, r = RECIPES[i];
   let e = recipeEntry[i] && history.find(h => h.id === recipeEntry[i]);
@@ -676,7 +698,7 @@ function dayLabel(ts){
   return diff === 0 ? "Heute" : diff === 1 ? "Gestern" : d.toLocaleDateString("de-DE", {weekday:"long", day:"numeric", month:"long", year: d.getFullYear() === t.getFullYear() ? undefined : "numeric"});
 }
 function renderDiary(){
-  const a = analyze(history, profile);
+  const a = analyze(analysisEntries(), P());
   let h = `<div class="card-hd"><h2 class="h2">Analyse</h2>${a.n >= 5 ? `<span class="meta">${a.n} bewertet</span>` : ""}</div>`;
   if (a.n < 5){
     h += `<p class="lead">Bewerte mindestens 5 Sachen, die du gegessen hast, mit <b>Gut</b> oder <b>Schlecht</b> – dann zeigt dir die Analyse Muster.</p>
@@ -697,16 +719,20 @@ function renderDiary(){
     h += `<p class="fine">Die Analyse vergleicht, wie oft du Essen mit und ohne bestimmte Zutaten schlecht vertragen hast. Sie ist ein Hinweis, keine Diagnose – sprich Auffälligkeiten mit deiner Ärztin oder deinem Arzt ab.</p>`;
   }
   const openMore = $("#analysis details[open]");
+  if (a.n >= 5) h += diaryAnalysisExtras();
   $("#analysis").innerHTML = h;
+  $("#analysisTools").innerHTML = diaryExtrasTop();
   if (openMore){ const d = $("#analysis details"); if (d) d.open = true; }
 
   const el = $("#histList");
-  if (!history.length){ el.innerHTML = `<div class="card empty">${SVG.book}<b>Noch keine Einträge</b>Geprüfte Produkte und bewertete Lebensmittel oder Rezepte landen hier.<br><button type="button" class="btn btn-secondary" data-go="check">Erstes Produkt prüfen</button></div>`; return; }
+  const mineE = myEntries();
+  if (!mineE.length){ el.innerHTML = `<div class="card empty">${SVG.book}<b>Noch keine Einträge</b>Geprüfte Produkte und bewertete Lebensmittel oder Rezepte landen hier.<br><button type="button" class="btn btn-secondary" data-go="check">Erstes Produkt prüfen</button></div>`; return; }
   let out = "", lastDay = "";
-  for (const x of history){
+  for (const x of mineE){
     const day = dayLabel(x.ts);
     if (day !== lastDay){ out += (lastDay ? "</ul>" : "") + `<div class="day">${esc(day)}</div><ul class="list">`; lastDay = day; }
-    const ev = evaluate(x.raw, profile);
+    if (x.src === "symptom"){ out += symptomRowHtml(x); continue; }
+    const ev = evaluate(x.raw, P());
     const rx = x.reaction ? `<span class="rx ${x.reaction}">${REACT[x.reaction]}</span>` : `<span class="rx none">Noch nicht bewertet</span>`;
     out += `<li><button type="button" class="row-btn hist" data-id="${x.id}">${st(ev.total)}<span class="sr-only">${LABEL[ev.total]}:</span><span class="txt"><b class="ell">${esc(x.name)}</b><small>${fmtTime(x.ts)} · ${SRC[x.src]||""} · ${rx}</small></span>${SVG.chev}</button></li>`;
   }
@@ -721,7 +747,7 @@ $("#histList").addEventListener("click", e => {
   const g = e.target.closest("[data-go]"); if (g){ goView(g.dataset.go); return; }
   const row = e.target.closest(".hist"); if (!row) return;
   const h = history.find(x => x.id === row.dataset.id); if (!h) return;
-  openEntrySheet(h);
+  if (h.src === "symptom") openSymptomEntry(h); else openEntrySheet(h);
 });
 
 /* ---------- Profil ---------- */
@@ -758,22 +784,24 @@ function renderSub(){
   const a = activeCats(), max = 4;
   const p = $("#profPill");
   p.setAttribute("aria-label", a.length ? "Dein Profil: " + a.map(c => CATS[c]).join(", ") + ". Ändern" : "Kein Profil aktiv. Profil einrichten");
+  const nm = (typeof F === "function" && F("family") && people.list.length > 1) ? `<span class="pname">${esc(personName())}</span>` : "";
   p.innerHTML = a.length
-    ? `${SVG.user}<span class="codes" aria-hidden="true">${a.slice(0, max).map(c => `<span class="badge">${esc(CAT[c].short)}</span>`).join("")}${a.length > max ? `<span class="badge">+${a.length - max}</span>` : ""}</span>`
-    : `${SVG.user}<span aria-hidden="true">Profil wählen</span>`;
+    ? `${SVG.user}${nm}<span class="codes" aria-hidden="true">${a.slice(0, max).map(c => `<span class="badge">${esc(CAT[c].short)}</span>`).join("")}${a.length > max ? `<span class="badge">+${a.length - max}</span>` : ""}</span>`
+    : `${SVG.user}${nm}<span aria-hidden="true">Profil wählen</span>`;
 }
-$("#profPill").addEventListener("click", () => goView("prof"));
+$("#profPill").addEventListener("click", () => { if (F("family") && people.list.length > 1) openPeopleSheet(); else goView("prof"); });
 
 /* ---------- Onboarding ---------- */
-let onbStep = 1, onbSel = new Set();
+let onbStep = 1, onbSel = new Set(), onbFeat = new Set(), onbFromProfile = false;
 function showOnb(fromProfile){
+  onbFromProfile = !!fromProfile;
   onbSel = new Set(fromProfile ? activeCats() : []);
   onbStep = 1; renderOnb(); $("#onb").hidden = false; document.body.classList.add("lock");
 }
 function closeOnb(){ $("#onb").hidden = true; document.body.classList.remove("lock"); }
 function renderOnb(){
   const o = $("#onb");
-  const dots = `<div class="onb-steps" aria-label="Schritt ${onbStep} von 2"><i class="on"></i><i class="${onbStep === 2 ? "on" : ""}"></i></div>`;
+  const dots = `<div class="onb-steps" aria-label="Schritt ${onbStep} von 3"><i class="on"></i><i class="${onbStep >= 2 ? "on" : ""}"></i><i class="${onbStep === 3 ? "on" : ""}"></i></div>`;
   if (onbStep === 1){
     o.innerHTML = `<div class="onb-in"><div class="onb-body">
       <img class="logo" src="icon-192.png" alt="">
@@ -787,6 +815,17 @@ function renderOnb(){
       <p class="hint" style="margin-top:var(--s5)">Deine Daten bleiben nur auf diesem Gerät.</p>
     </div>
     <div class="onb-foot"><button type="button" class="btn btn-primary btn-lg btn-block" data-onb="next">Los geht’s</button><button type="button" class="btn-link" data-onb="skip">Überspringen</button></div></div>`;
+  } else if (onbStep === 3){
+    const rec = recommendFeatures([...onbSel]);
+    o.innerHTML = `<div class="onb-in"><div class="onb-body">${dots}
+      <h1 id="onbTitle" tabindex="-1">Was möchtest du nutzen?</h1>
+      <p class="lead">Wir haben passend zu deiner Auswahl etwas vorgeschlagen. Die App zeigt nur, was du einschaltest – ändern kannst du das jederzeit im Profil unter „Funktionen“.</p>
+      <h2>Empfohlen für dich</h2>
+      <ul class="cat-list onb-feat">${featureListHtml(onbFeat, null, f => rec.has(f.k))}</ul>
+      <details class="disc onb-more"><summary>${SVG.chev}Weitere Funktionen (${FEATURES.filter(f => !rec.has(f.k)).length})</summary>
+        <ul class="cat-list onb-feat">${featureListHtml(onbFeat, null, f => !rec.has(f.k))}</ul></details>
+    </div>
+    <div class="onb-foot"><button type="button" class="btn btn-primary btn-lg btn-block" data-onb="finish">Fertig – los geht’s</button><button type="button" class="btn-link" data-onb="back">Zurück</button></div></div>`;
   } else {
     const grp = G => `<h2>${G.title}</h2><div class="pick" role="group" aria-label="${G.title}">${CAT_DEF.filter(d => d.grp === G.g).map(d =>
       `<button type="button" aria-pressed="${onbSel.has(d.k)}" data-pick="${d.k}">${SVG.check}${esc(d.n)}</button>`).join("")}</div>`;
@@ -796,18 +835,25 @@ function renderOnb(){
       <p class="lead">Wähle alles aus, was auf dich zutrifft. Feinjustieren und ändern kannst du es jederzeit im Profil.</p>
       ${GROUPS.map(grp).join("")}
     </div>
-    <div class="onb-foot"><button type="button" class="btn btn-primary btn-lg btn-block" data-onb="done"${n ? "" : ' aria-disabled="true"'}>${n ? `Fertig – ${n} ausgewählt` : "Wähle mindestens eins aus"}</button><button type="button" class="btn-link" data-onb="skip">Später einrichten</button></div></div>`;
+    <div class="onb-foot"><button type="button" class="btn btn-primary btn-lg btn-block" data-onb="done"${n ? "" : ' aria-disabled="true"'}>${n ? `${onbFromProfile ? "Fertig" : "Weiter"} – ${n} ausgewählt` : "Wähle mindestens eins aus"}</button><button type="button" class="btn-link" data-onb="skip">Später einrichten</button></div></div>`;
   }
   const t = $("#onbTitle"); if (t) t.focus({preventScroll:true});
   o.scrollTop = 0;
 }
+$("#onb").addEventListener("change", e => {
+  const t = e.target.closest("[data-feat]"); if (!t) return;
+  const k = t.dataset.feat;
+  if (t.checked){ onbFeat.add(k); if (FEAT[k].needs) onbFeat.add(FEAT[k].needs); }
+  else { onbFeat.delete(k); FEATURES.filter(f => f.needs === k).forEach(f => onbFeat.delete(f.k)); }
+  $$("#onb [data-feat]").forEach(i => i.checked = onbFeat.has(i.dataset.feat));
+});
 $("#onb").addEventListener("click", e => {
   const p = e.target.closest("[data-pick]");
   if (p){
     const k = p.dataset.pick; onbSel.has(k) ? onbSel.delete(k) : onbSel.add(k);
     p.setAttribute("aria-pressed", onbSel.has(k));
     const d = $('#onb [data-onb="done"]'), n = onbSel.size;
-    d.textContent = n ? `Fertig – ${n} ausgewählt` : "Wähle mindestens eins aus";
+    d.textContent = n ? `${onbFromProfile ? "Fertig" : "Weiter"} – ${n} ausgewählt` : "Wähle mindestens eins aus";
     if (n) d.removeAttribute("aria-disabled"); else d.setAttribute("aria-disabled", "true");
     return;
   }
@@ -818,8 +864,18 @@ $("#onb").addEventListener("click", e => {
   else if (a === "done"){
     if (!onbSel.size){ toast("Tippe auf alles, was du nicht verträgst"); return; }
     KEYS.forEach(c => profile.on[c] = onbSel.has(c));
-    saveProfile(); closeOnb(); goView("check"); refreshAll();
-    toast("Profil gespeichert – scanne dein erstes Produkt");
+    saveProfile();
+    if (onbFromProfile){ closeOnb(); goView("check"); refreshAll(); toast("Profil gespeichert"); return; }
+    const rec = recommendFeatures([...onbSel]);
+    onbFeat = new Set(FEATURES.map(f => f.k).filter(k => rec.has(k)));
+    onbStep = 3; renderOnb();
+  }
+  else if (a === "back"){ onbStep = 2; renderOnb(); }
+  else if (a === "finish"){
+    FEATURES.forEach(f => settings.features[f.k] = onbFeat.has(f.k));
+    settings.newHint = false; saveSettings(); applyFeatures();
+    closeOnb(); goView("check"); refreshAll();
+    toast("Fertig – scanne dein erstes Produkt");
     $("#scanBtn").focus({preventScroll:true});
   }
 });
@@ -838,5 +894,4 @@ function goView(v){
 }
 $$(".tabbar button").forEach(b => b.addEventListener("click", () => goView(b.dataset.v)));
 
-load(); renderCats(); renderMeals(); refreshAll();
-if (!hasStoredProfile && !history.length) showOnb(false);
+/* Start: siehe features.js */
