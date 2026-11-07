@@ -286,14 +286,32 @@ $("#eanBtn").addEventListener("click", () => {
 });
 
 /* ---------- Produktsuche nach Name (Open Food Facts) ---------- */
-const SEARCH_FIELDS = "code,product_name,product_name_de,brands,quantity,ingredients_text_de,ingredients_text";
-async function offSearch(q, germanyOnly){
-  const p = new URLSearchParams({search_terms:q, search_simple:"1", action:"process", json:"1", page_size:"20", sort_by:"unique_scans_n", fields:SEARCH_FIELDS, lc:"de"});
-  if (germanyOnly){ p.set("tagtype_0","countries"); p.set("tag_contains_0","contains"); p.set("tag_0","germany"); }
-  const r = await fetch("https://world.openfoodfacts.org/cgi/search.pl?" + p.toString());
-  if (!r.ok) throw new Error("http " + r.status);
-  const j = await r.json();
-  return (j.products || []).filter(x => x.code && (x.product_name_de || x.product_name));
+const SEARCH_FIELDS = "code,product_name,product_name_de,brands,quantity,ingredients_text_de,ingredients_text,countries_tags";
+async function fetchJson(url, ms){
+  const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), ms || 12000);
+  try{
+    const r = await fetch(url, {signal: ctl.signal});
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    return await r.json();
+  } finally { clearTimeout(t); }
+}
+const brandOf = x => (Array.isArray(x.brands) ? x.brands[0] : String(x.brands || "").split(",")[0]) || "";
+const nameOf = x => x.product_name_de || x.product_name || x.product_name_en || "";
+/* 1. Neue Volltextsuche (Search-a-licious), 2. alte Suche als Reserve */
+async function offSearch(q){
+  const errors = [];
+  try{
+    const p = new URLSearchParams({q, langs:"de,en", page_size:"25"});
+    const j = await fetchJson("https://search.openfoodfacts.org/search?" + p.toString(), 10000);
+    const list = (j.hits || []).filter(x => x.code && nameOf(x));
+    if (list.length) return list;
+  }catch(e){ errors.push("Suche neu: " + (e.name === "AbortError" ? "Zeitüberschreitung" : e.message)); }
+  try{
+    const p = new URLSearchParams({search_terms:q, search_simple:"1", action:"process", json:"1", page_size:"25", fields:SEARCH_FIELDS, lc:"de"});
+    const j = await fetchJson("https://world.openfoodfacts.org/cgi/search.pl?" + p.toString(), 15000);
+    return (j.products || []).filter(x => x.code && nameOf(x));
+  }catch(e){ errors.push("Suche alt: " + (e.name === "AbortError" ? "Zeitüberschreitung" : e.message)); }
+  const err = new Error(errors.join(" · ")); err.all = true; throw err;
 }
 async function searchProducts(q, where){
   $("#result").innerHTML = ""; currentResult = null;
@@ -303,14 +321,15 @@ async function searchProducts(q, where){
     : window.info;
   info('<div class="row" style="justify-content:flex-start;gap:10px"><div class="spin" style="flex:none"></div><span>Suche „' + esc(q) + '“ bei Open Food Facts…</span></div>');
   let list;
-  try{
-    list = await offSearch(q, true);
-    if (!list.length) list = await offSearch(q, false);
-  }catch(e){ info("Die Suche hat nicht geklappt – bist du online? Open Food Facts ist manchmal kurz überlastet, versuch es gleich noch einmal."); return; }
+  try{ list = await offSearch(q); }
+  catch(e){ info("Die Suche hat nicht geklappt – Open Food Facts ist gerade nicht erreichbar oder überlastet. Versuch es gleich noch einmal oder scanne den Barcode.<br><span class=\"meta\">Details: " + esc(e.message) + "</span>"); return; }
+  const de = x => (x.countries_tags || []).includes("en:germany") ? 0 : 1;
+  list.sort((a, b) => de(a) - de(b));
   if (!list.length){ info("Kein Produkt zu „" + esc(q) + "“ gefunden. Versuch es mit Marke und Produkt (z. B. „Ferrero Nutella“), scanne den Barcode oder fotografiere die Zutatenliste."); return; }
   info(`<b style="color:var(--ink)">${list.length} Treffer – Produkt antippen:</b>` + list.slice(0, 15).map(x => {
-    const name = x.product_name_de || x.product_name, brand = (x.brands || "").split(",")[0].trim();
-    const hasIng = !!((x.ingredients_text_de || x.ingredients_text || "").trim());
+    const name = nameOf(x), brand = brandOf(x).trim();
+    const ing = x.ingredients_text_de ?? x.ingredients_text;
+    const hasIng = ing === undefined ? true : !!String(ing || "").trim();
     return `<div class="food" data-code="${esc(x.code)}" style="cursor:pointer"><div class="n" style="color:var(--ink)">${esc(name)}<small>${esc([brand, x.quantity].filter(Boolean).join(" · "))}${hasIng ? "" : " · keine Zutaten hinterlegt"}</small></div><span class="muted">›</span></div>`;
   }).join(""));
 }
