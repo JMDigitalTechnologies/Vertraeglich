@@ -178,6 +178,7 @@ $("#photoOcr").addEventListener("change", async e => {
 const BD_SRC = "https://fastly.jsdelivr.net/npm/barcode-detector@2/dist/es/pure.min.js";
 const FORMATS = ["ean_13","ean_8","upc_a","upc_e"];
 let detector = null, stream = null, scanning = false, scanTimer = null;
+window.info = info;
 function info(html){ const el = $("#scanInfo"); if (!html){ el.style.display = "none"; return; } el.innerHTML = html; el.style.display = "block"; }
 function scanStatus(t){ $("#scanStatus").textContent = t; }
 async function getDetector(){
@@ -294,8 +295,12 @@ async function offSearch(q, germanyOnly){
   const j = await r.json();
   return (j.products || []).filter(x => x.code && (x.product_name_de || x.product_name));
 }
-async function searchProducts(q){
+async function searchProducts(q, where){
   $("#result").innerHTML = ""; currentResult = null;
+  /* Ausgabe dort, wo gesucht wurde: oben im Hinweisfeld oder unten im Ergebnisbereich */
+  const info = where === "bottom"
+    ? (html => { $("#scanInfo").style.display = "none"; $("#result").innerHTML = html ? `<div class="card" id="searchCard"><div class="note" style="margin:0;background:none;padding:0">${html}</div></div>` : ""; })
+    : window.info;
   info('<div class="row" style="justify-content:flex-start;gap:10px"><div class="spin" style="flex:none"></div><span>Suche „' + esc(q) + '“ bei Open Food Facts…</span></div>');
   let list;
   try{
@@ -310,6 +315,7 @@ async function searchProducts(q){
   }).join(""));
 }
 $("#scanInfo").addEventListener("click", e => { const r = e.target.closest("[data-code]"); if (r) lookup(r.dataset.code); });
+$("#result").addEventListener("click", e => { const r = e.target.closest("#searchCard [data-code]"); if (r){ e.stopPropagation(); lookup(r.dataset.code); } }, true);
 $("#eanIn").addEventListener("keydown", e => { if (e.key === "Enter") $("#eanBtn").click(); });
 
 const OFF_FIELDS = "product_name,product_name_de,generic_name_de,brands,ingredients_text_de,ingredients_text,allergens_tags,traces_tags,labels_tags";
@@ -355,7 +361,7 @@ $("#txtBtn").addEventListener("click", () => {
   const t = $("#txt").value.trim();
   if (!t){
     const name = $("#txtName").value.trim();
-    if (name){ $("#eanIn").value = name; searchProducts(name); $("#v-check").scrollIntoView({behavior:"smooth", block:"start"}); }
+    if (name) searchProducts(name, "bottom");
     else $("#txt").focus();
     return;
   }
