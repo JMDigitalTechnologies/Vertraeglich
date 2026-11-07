@@ -2,8 +2,10 @@
 /* Verträglich – Bewertungslogik (ohne DOM, testbar)
    raw = {mode:"label"|"recipe"|"food", items:[{n, s?:klein, x?:{h,f,g,l} feste Werte, fix?:true}], spuren?, gf?, lf?} */
 
-const KEYS = ["h","f","g","l"];
-const CATS = {h:"Histamin", f:"Fructose", g:"Gluten", l:"Laktose"};
+const KEYS = ["h","f","g","l","t"];
+const CATS = {h:"Histamin", f:"Fructose", g:"Gluten", l:"Laktose", t:"Tomate"};
+/* Bei diesen Kategorien zählt jede Menge – keine Abwertung kleiner Mengen */
+const ANY_AMOUNT = {g:true, t:true};
 const LABEL = ["Verträglich","Vorsicht","Meiden"];
 /* Empfindlichkeit: [Schwelle rot, Schwelle gelb] auf den gewichteten Wert */
 const SENS_T = {1:[2,1.5], 2:[2,1], 3:[1,0.5]};
@@ -21,7 +23,8 @@ function parsePct(name){
 
 function rateText(name, ctx){
   const n = norm(name);
-  const res = {h:null,f:null,g:null,l:null}, why = {h:[],f:[],g:[],l:[]}, ov = {h:null,f:null,g:null,l:null}, ovWhy = {h:[],f:[],g:[],l:[]};
+  const res = {}, why = {}, ov = {}, ovWhy = {};
+  for (const c of KEYS){ res[c] = null; why[c] = []; ov[c] = null; ovWhy[c] = []; }
   for (const r of RULES){
     if (!r.re.test(n)) continue;
     for (const c of KEYS){
@@ -36,8 +39,8 @@ function rateText(name, ctx){
   return {res, why};
 }
 
-/* gewichteter Wert: kleine Menge zählt eine halbe Stufe weniger – außer bei Gluten (da zählt jede Menge) */
-function weighted(c, raw, small){ return (small && c !== "g") ? Math.max(0, raw - 0.5) : raw; }
+/* gewichteter Wert: kleine Menge zählt eine halbe Stufe weniger – außer bei Gluten und Tomate (da zählt jede Menge) */
+function weighted(c, raw, small){ return (small && !ANY_AMOUNT[c]) ? Math.max(0, raw - 0.5) : raw; }
 function finalLevel(c, raw, small, sens){
   const T = SENS_T[sens || 2] || SENS_T[2], s = weighted(c, raw, small);
   return s >= T[0] ? 2 : s >= T[1] ? 1 : 0;
@@ -66,9 +69,10 @@ function evaluate(raw, profile){
   if (raw.spuren && !ctx.gf){
     const t = rateText(raw.spuren, {});
     if ((t.res.g ?? 0) >= 1){
-      const r = {h:0,f:0,g:1,l:0}, lvl = {};
+      const r = {}, lvl = {}; for (const c of KEYS) r[c] = c === "g" ? 1 : 0;
       for (const c of KEYS) lvl[c] = finalLevel(c, r[c], false, profile.sens[c]);
-      items.push({name: String(raw.spuren).trim(), key: "", r, lvl, why:{h:"",f:"",g:"Spuren von glutenhaltigem Getreide",l:""}, small:false, pos:null, pct:null, mine:null, trace:true, fix:true});
+      const why = {}; for (const c of KEYS) why[c] = c === "g" ? "Spuren von glutenhaltigem Getreide" : "";
+      items.push({name: String(raw.spuren).trim(), key: "", r, lvl, why, small:false, pos:null, pct:null, mine:null, trace:true, fix:true});
     }
   }
   const cat = {};
@@ -107,10 +111,12 @@ function splitIngredients(text){
   const m = t.match(/(kann\s+(auch\s+)?spuren|spuren\s+von|enth(ä|ae)lt\s+spuren|may contain|kann .{0,40}enthalten\.?$)[\s\S]*$/i);
   if (m){ spuren = m[0]; t = t.slice(0, m.index); }
   const parts = []; let depth = 0, cur = "";
-  for (const ch of t){
+  for (let k = 0; k < t.length; k++){
+    const ch = t[k];
     if ("([{".includes(ch)) depth++;
     if (")]}".includes(ch)) depth = Math.max(0, depth-1);
-    if ((ch === "," || ch === ";") && depth === 0){ parts.push(cur); cur = ""; } else cur += ch;
+    const decimal = ch === "," && /\d/.test(t[k-1] || "") && /\d/.test(t[k+1] || "");
+    if ((ch === "," || ch === ";") && depth === 0 && !decimal){ parts.push(cur); cur = ""; } else cur += ch;
   }
   parts.push(cur);
   return {parts: parts.map(p => p.trim().replace(/[.\s]+$/,"")).filter(p => p.length > 1), spuren};

@@ -1,7 +1,7 @@
 "use strict";
 /* Verträglich – Daten: Lebensmittel, Zutaten-Regeln, Rezepte
    Bewertung: 0 = verträglich, 1 = Vorsicht, 2 = meiden
-   Kategorien: h = Histamin, f = Fructose, g = Gluten, l = Laktose */
+   Kategorien: h = Histamin, f = Fructose, g = Gluten, l = Laktose, t = Tomate */
 
 /* ---------- Lebensmittel: Name|Kategorie|h|f|g|l|Hinweis ---------- */
 const FOOD_RAW = `
@@ -157,9 +157,10 @@ Chili, Curry|Würzen|1|0|0|0|
 Frische Kräuter|Würzen|0|0|0|0|
 Salz, Pfeffer|Würzen|0|0|0|0|
 `;
+const TOMATO_FOODS = {"Tomate":2, "Ketchup":2, "Gemüsebrühe (Fertig)":1};
 const FOODS = FOOD_RAW.trim().split("\n").map(l => {
   const [n,k,h,f,g,lk,note] = l.split("|");
-  return {n, k, h:+h, f:+f, g:+g, l:+lk, note: note || ""};
+  return {n, k, h:+h, f:+f, g:+g, l:+lk, t: TOMATO_FOODS[n] || 0, note: note || ""};
 });
 
 /* ---------- Regeln für Zutatenlisten (auf normalisierten Text: klein, ä→ae, ö→oe, ü→ue, ß→ss) ----------
@@ -209,6 +210,10 @@ const RULES = [
   {re:/apfel|aepfel|birne|mango|pflaume|dattel|feige|rosine|trockenobst|trockenfruecht|(^|[^a-z])apples?([^a-z]|$)|(^|[^a-z])pears?([^a-z]|$)|raisin|(^|[^a-z])dates?([^a-z]|$)/, f:2, why:"Fruktosereiches Obst"},
   {re:/fruchtsaft|saftkonzentrat|fruchtpulver|fruchtzubereitung|fruit juice|juice concentrate/, f:1, why:"Fruchtsaft/-zubereitung – oft fruktosereich"},
   {re:/zwiebel|knoblauch|lauch|onion|garlic/, f:1, why:"Fruktane – kleine Mengen oft ok"},
+
+  /* --- Tomate (in jeder Form, auch als Gewürz) --- */
+  {re:/tomat|ketchup|catsup|passata|pizzasauce|pizzasosse|pizzawuerze|bolognese|arrabbiata|napoli|gazpacho|(^|[^a-z])sugo|chutney/, t:2, why:"Tomate (auch als Pulver, Mark, Soße oder Gewürz)"},
+  {re:/(^|[^a-z])gewuerze?([^a-z]|$)|gewuerzmischung|gewuerzzubereitung|wuerzmischung|gemuesepulver|gemueseextrakt|gemuesebruehe|bruehe|bouillon|(^|[^a-z])salsa|grillsauce|barbecue|bbq|(^|[^a-z])curry([^a-z]|$)|(^|[^a-z])spices?([^a-z]|$)|seasoning/, t:1, why:"Gewürz-/Gemüsemischung – enthält häufig Tomate"},
 
   /* --- Histamin --- */
   {re:/hefeextrakt|hefe-extrakt|yeast extract|speisewuerze|(^|[^a-z])wuerze([^a-z]|$)/, h:2, why:"Hefeextrakt/Würze – histaminreich"},
