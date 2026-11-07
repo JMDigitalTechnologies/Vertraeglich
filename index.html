@@ -10,7 +10,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" href="icon-192.png">
-<title>Verträglich – Histamin, Fructose, Gluten</title>
+<title>Verträglich – Histamin, Fructose, Gluten, Laktose</title>
 <style>
 :root{
   --bg:#f5f3ee; --card:#ffffff; --ink:#1d2421; --muted:#6b736f; --line:#e4e0d8;
@@ -99,11 +99,52 @@ nav button.on{color:var(--brand)}
 .legend i{width:10px;height:10px;border-radius:50%}
 details summary{cursor:pointer;color:var(--brand);font-weight:600;font-size:14px;margin-top:8px}
 </style>
+<style>
+nav button{font-size:11px;padding:8px 2px 10px}
+.sens{display:flex;gap:6px;margin:8px 0 2px}
+.sens button{flex:1;padding:8px 4px;font-size:13px;font-weight:500;background:var(--bg);color:var(--muted);border:1px solid var(--line)}
+.sens button.on{background:var(--brand);color:#fff;border-color:var(--brand)}
+.sensHint{font-size:12.5px;color:var(--muted);margin:2px 0 4px}
+.pblock{border-top:1px solid var(--line);padding:12px 0}
+.pblock:first-of-type{border-top:0}
+.react{display:flex;gap:8px;margin-top:10px}
+.react button{flex:1;padding:10px 4px;font-size:14px;font-weight:600;background:var(--bg);color:var(--ink);border:1px solid var(--line)}
+.react button.on.good{background:var(--ok);color:#fff;border-color:var(--ok)}
+.react button.on.unsure{background:var(--unk);color:#fff;border-color:var(--unk)}
+.react button.on.bad{background:var(--bad);color:#fff;border-color:var(--bad)}
+.mk{display:inline-flex;gap:6px;margin-top:6px}
+.mk button{padding:4px 10px;font-size:12.5px;font-weight:600;border-radius:999px;background:var(--bg);color:var(--muted);border:1px solid var(--line)}
+.mk button.on.ok{background:var(--ok);color:#fff;border-color:var(--ok)}
+.mk button.on.bad{background:var(--bad);color:#fff;border-color:var(--bad)}
+.meta{font-size:12px;color:var(--muted)}
+.bar{height:10px;border-radius:999px;background:var(--bg);overflow:hidden;margin-top:6px}
+.bar>i{display:block;height:100%;border-radius:999px}
+.acat{border-top:1px solid var(--line);padding:12px 0}
+.acat:first-of-type{border-top:0}
+.acat .hd{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.pill{font-size:12px;font-weight:700;border-radius:999px;padding:3px 9px;white-space:nowrap}
+.p-strong{background:var(--bad-soft);color:var(--bad)}.p-possible{background:var(--warn-soft);color:var(--warn)}
+.p-none{background:var(--ok-soft);color:var(--ok)}.p-data{background:var(--bg);color:var(--muted)}
+.rcp{border-top:1px solid var(--line);padding:12px 0}
+.rcp:first-child{border-top:0}
+.rcp .hd{display:flex;gap:10px;align-items:flex-start}
+.rcp .hd i{width:12px;height:12px;border-radius:50%;flex:none;margin-top:6px}
+.rcp .hd b{display:block}
+.rcp ul,.rcp ol{margin:8px 0 0;padding-left:20px;font-size:14.5px}
+.rcp li{margin:3px 0}
+.flag{font-size:12px;font-weight:600;margin-left:4px}
+.toast{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:999px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .25s;z-index:20;max-width:90vw;text-align:center}
+.toast.on{opacity:1}
+.mine{display:flex;align-items:center;gap:8px;border-top:1px solid var(--line);padding:8px 0}
+.mine:first-child{border-top:0}
+.mine span{flex:1}
+.chk{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--muted);margin-top:8px}
+</style>
 </head>
 <body>
 <header>
   <h1>Verträglich</h1>
-  <p id="sub">Histamin · Fructose · Gluten</p>
+  <p id="sub"></p>
 </header>
 
 <main>
@@ -142,7 +183,7 @@ details summary{cursor:pointer;color:var(--brand);font-weight:600;font-size:14px
 
   <div class="card">
     <h2>…oder Zutaten einfügen</h2>
-    <textarea id="txt" placeholder="z. B. Zutaten: Weizenmehl, Zucker, Tomatenmark, Hefeextrakt, Sorbit, Salz. Kann Spuren von Sellerie enthalten."></textarea>
+    <textarea id="txt" placeholder="z. B. Zutaten: Weizenmehl, Zucker, Tomatenmark 10 %, Hefeextrakt, Sorbit, Salz. Kann Spuren von Sellerie enthalten."></textarea>
     <div class="row" style="margin-top:10px">
       <input type="text" id="txtName" placeholder="Produktname (optional)">
       <button id="txtBtn" style="flex:none">Prüfen</button>
@@ -157,585 +198,59 @@ details summary{cursor:pointer;color:var(--brand);font-weight:600;font-size:14px
   <div class="card" style="padding-bottom:8px">
     <input type="search" id="q" placeholder="Lebensmittel suchen…" autocomplete="off">
     <div class="seg" id="cats" style="margin-top:10px"></div>
-    <div class="legend"><span><i class="c0"></i>verträglich</span><span><i class="c1"></i>Vorsicht</span><span><i class="c2"></i>meiden</span></div>
+    <div class="legend"><span><i class="c0"></i>verträglich</span><span><i class="c1"></i>Vorsicht</span><span><i class="c2"></i>meiden</span><span>· antippen zum Eintragen ins Tagebuch</span></div>
   </div>
   <div class="card" id="foodList"></div>
 </section>
 
-<!-- VERLAUF -->
-<section class="view" id="v-hist">
+<!-- REZEPTE -->
+<section class="view" id="v-recipes">
+  <div class="card" style="padding-bottom:8px">
+    <h2>Rezepte für dein Profil</h2>
+    <div class="seg" id="meals"></div>
+    <label class="chk"><input type="checkbox" id="showWarn"> Auch Rezepte mit „Vorsicht“ zeigen</label>
+  </div>
+  <div class="card" id="recipeList"></div>
+</section>
+
+<!-- TAGEBUCH -->
+<section class="view" id="v-diary">
+  <div class="card" id="analysis"></div>
   <div class="card" id="histList"></div>
 </section>
 
 <!-- PROFIL -->
 <section class="view" id="v-prof">
+  <div class="card" id="profCats"></div>
   <div class="card">
-    <h2>Meine Unverträglichkeiten</h2>
-    <div class="toggle"><div class="t"><b>Histamin</b><span>Histaminreiche Lebensmittel und Histaminliberatoren</span></div><label class="sw"><input type="checkbox" data-p="h"><span></span></label></div>
-    <div class="toggle"><div class="t"><b>Fructose</b><span>Fruktose, Sorbit &amp; andere Zuckeralkohole</span></div><label class="sw"><input type="checkbox" data-p="f"><span></span></label></div>
-    <div class="toggle"><div class="t"><b>Gluten</b><span>Weizen, Dinkel, Roggen, Gerste &amp; Co.</span></div><label class="sw"><input type="checkbox" data-p="g"><span></span></label></div>
-    <div class="toggle"><div class="t"><b>Gluten streng</b><span>Auch „Kann Spuren enthalten“ als „meiden“ werten (z. B. bei Zöliakie)</span></div><label class="sw"><input type="checkbox" data-p="gs"><span></span></label></div>
+    <h2>Meine Zutaten</h2>
+    <p class="small muted" style="margin:0 0 8px">Zutaten, die du als „vertrage ich“ oder „vertrage ich nicht“ markiert hast. Sie gelten für alle Produkte und Rezepte.</p>
+    <div id="mineList"></div>
   </div>
   <div class="card">
     <h2>Als App aufs iPhone</h2>
-    <p class="small muted" style="margin:0">Öffne diese Seite in Safari, tippe auf <b>Teilen</b> und dann auf <b>Zum Home-Bildschirm</b>.</p>
-    <p class="small muted" id="storeInfo" style="margin:10px 0 0"></p>
+    <p class="small muted" style="margin:0">Öffne diese Seite in Safari, tippe auf <b>Teilen</b> und dann auf <b>Zum Home-Bildschirm</b>. Profil und Tagebuch werden nur auf diesem Gerät gespeichert.</p>
   </div>
   <div class="card">
     <h2>Wichtiger Hinweis</h2>
-    <p class="small muted" style="margin:0">Die Bewertungen sind allgemeine Orientierungswerte. Verträglichkeit ist individuell. Die App ersetzt keine ärztliche oder ernährungstherapeutische Beratung. Produktdaten stammen aus Open Food Facts (von Freiwilligen gepflegt) und können unvollständig oder veraltet sein. Bei der Texterkennung von Fotos kann es Lesefehler geben – prüfe bei Unsicherheit die Verpackung selbst.</p>
+    <p class="small muted" style="margin:0">Die Bewertungen sind allgemeine Orientierungswerte. Verträglichkeit ist individuell. Die App ersetzt keine ärztliche oder ernährungstherapeutische Beratung, und die Tagebuch-Analyse ist keine Diagnose. Produktdaten stammen aus Open Food Facts (von Freiwilligen gepflegt) und können unvollständig oder veraltet sein. Bei der Texterkennung von Fotos kann es Lesefehler geben – prüfe bei Unsicherheit die Verpackung selbst.</p>
   </div>
 </section>
 </main>
 
 <nav><div class="in">
-  <button class="on" data-v="check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13.5" r="3.5"/></svg>Prüfen</button>
+  <button class="on" data-v="check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7V5a1 1 0 0 1 1-1h2M17 4h2a1 1 0 0 1 1 1v2M20 17v2a1 1 0 0 1-1 1h-2M7 20H5a1 1 0 0 1-1-1v-2"/><path d="M7 8v8M10 8v8M13 8v8M16 8v8"/></svg>Prüfen</button>
   <button data-v="foods"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>Lebensmittel</button>
-  <button data-v="hist"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Verlauf</button>
+  <button data-v="recipes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 13h16a8 8 0 0 1-16 0z"/><path d="M9 9c0-2 2-2 2-4M13 9c0-2 2-2 2-4"/></svg>Rezepte</button>
+  <button data-v="diary"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V5M4 19h16"/><path d="M8 15l3-4 3 2 5-6"/></svg>Tagebuch</button>
   <button data-v="prof"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>Profil</button>
 </div></nav>
 
 <div class="sheet" id="sheet"><div class="in" id="sheetIn"></div></div>
+<div class="toast" id="toast"></div>
 
-<script>
-"use strict";
-/* ---------- Grundlagen ---------- */
-const CATS = {h:"Histamin", f:"Fructose", g:"Gluten"};
-const LABEL = ["Verträglich","Vorsicht","Meiden"];
-const $ = s => document.querySelector(s);
-const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-const norm = s => String(s||"").toLowerCase().replace(/ä/g,"ae").replace(/ö/g,"oe").replace(/ü/g,"ue").replace(/ß/g,"ss");
-
-/* ---------- Lebensmittel-Liste: Name|Kategorie|Histamin|Fructose|Gluten|Hinweis  (0 ok, 1 Vorsicht, 2 meiden) ---------- */
-const FOOD_RAW = `
-Kartoffel|Gemüse|0|0|0|
-Karotte|Gemüse|0|0|0|
-Gurke|Gemüse|0|0|0|
-Zucchini|Gemüse|0|0|0|
-Kürbis|Gemüse|0|0|0|
-Paprika|Gemüse|0|0|0|
-Brokkoli|Gemüse|0|1|0|Kann blähen
-Blumenkohl|Gemüse|0|1|0|Kann blähen
-Fenchel|Gemüse|0|0|0|
-Rote Bete|Gemüse|0|0|0|
-Süßkartoffel|Gemüse|0|0|0|
-Mais|Gemüse|0|0|0|
-Kopfsalat, Eisberg|Gemüse|0|0|0|
-Feldsalat|Gemüse|0|0|0|
-Rucola|Gemüse|0|0|0|
-Spargel|Gemüse|0|1|0|Fruktane
-Tomate|Gemüse|2|0|0|Histaminliberator – auch Tomatenmark, Ketchup, Passata
-Spinat|Gemüse|2|0|0|Histaminreich
-Aubergine|Gemüse|2|0|0|Histaminreich
-Avocado|Gemüse|2|0|0|Histaminreich
-Sauerkraut|Gemüse|2|0|0|Fermentiert
-Oliven|Gemüse|2|0|0|Meist fermentiert oder eingelegt
-Essiggurken|Gemüse|2|0|0|Essig
-Pilze, Champignons|Gemüse|1|1|0|Nur ganz frisch
-Zwiebel|Gemüse|0|1|0|Fruktane – kleine Mengen oft ok
-Knoblauch|Gemüse|0|1|0|Fruktane – kleine Mengen oft ok
-Lauch|Gemüse|0|1|0|Fruktane
-Erbsen|Hülsenfrüchte|1|1|0|
-Linsen|Hülsenfrüchte|1|1|0|
-Kichererbsen|Hülsenfrüchte|1|1|0|
-Kidneybohnen|Hülsenfrüchte|1|1|0|
-Tofu, Soja|Hülsenfrüchte|1|1|0|Individuell sehr verschieden
-Erdnüsse|Nüsse & Samen|2|0|0|Histaminliberator
-Walnuss|Nüsse & Samen|2|0|0|
-Cashew|Nüsse & Samen|2|0|0|
-Haselnuss|Nüsse & Samen|1|0|0|
-Mandel|Nüsse & Samen|1|0|0|
-Macadamia|Nüsse & Samen|0|0|0|
-Kürbiskerne|Nüsse & Samen|0|0|0|
-Sonnenblumenkerne|Nüsse & Samen|1|0|0|
-Leinsamen|Nüsse & Samen|0|0|0|
-Chiasamen|Nüsse & Samen|0|0|0|
-Apfel|Obst|0|2|0|Viel Fruktose und Sorbit
-Birne|Obst|0|2|0|Viel Fruktose und Sorbit
-Mango|Obst|0|2|0|
-Wassermelone|Obst|0|2|0|
-Kirsche|Obst|0|2|0|Sorbit
-Pflaume|Obst|1|2|0|Sorbit
-Trockenobst (Rosinen, Datteln, Feigen)|Obst|1|2|0|Sehr fruktosereich
-Honigmelone|Obst|0|1|0|
-Weintrauben|Obst|0|1|0|
-Pfirsich, Nektarine|Obst|0|1|0|
-Aprikose|Obst|0|1|0|Sorbit
-Johannisbeere|Obst|0|1|0|
-Banane|Obst|1|0|0|Sehr reif mehr Histamin
-Heidelbeere|Obst|0|0|0|
-Himbeere|Obst|1|0|0|
-Rhabarber|Obst|0|0|0|
-Papaya|Obst|1|0|0|
-Erdbeere|Obst|2|0|0|Histaminliberator
-Kiwi|Obst|2|0|0|Histaminliberator
-Ananas|Obst|2|1|0|Histaminliberator
-Orange|Obst|2|0|0|Zitrusfrucht
-Mandarine|Obst|2|0|0|Zitrusfrucht
-Grapefruit|Obst|2|0|0|Zitrusfrucht
-Zitrone|Obst|1|0|0|Etwas Saft zum Würzen oft ok
-Reis|Getreide & Brot|0|0|0|
-Hirse|Getreide & Brot|0|0|0|
-Buchweizen|Getreide & Brot|0|0|0|Kein Weizen – glutenfrei
-Quinoa|Getreide & Brot|0|0|0|
-Amaranth|Getreide & Brot|0|0|0|
-Maismehl, Polenta|Getreide & Brot|0|0|0|
-Reisnudeln|Getreide & Brot|0|0|0|
-Hafer|Getreide & Brot|0|0|1|Nur als „glutenfrei“ gekennzeichnet sicher
-Weizen|Getreide & Brot|0|1|2|Fruktane
-Dinkel|Getreide & Brot|0|1|2|
-Roggen|Getreide & Brot|0|1|2|
-Gerste|Getreide & Brot|0|1|2|
-Bulgur, Couscous|Getreide & Brot|0|1|2|Aus Weizen
-Nudeln (Weizen)|Getreide & Brot|0|1|2|
-Weizenbrot, Brötchen|Getreide & Brot|0|1|2|
-Roggenbrot, Sauerteig|Getreide & Brot|1|1|2|
-Glutenfreies Brot|Getreide & Brot|0|0|0|Zutaten trotzdem prüfen
-Paniermehl|Getreide & Brot|0|1|2|
-Milch|Milchprodukte|0|0|0|
-Butter|Milchprodukte|0|0|0|
-Sahne|Milchprodukte|0|0|0|
-Quark|Milchprodukte|0|0|0|
-Frischkäse|Milchprodukte|0|0|0|
-Mozzarella|Milchprodukte|0|0|0|Frisch
-Mascarpone|Milchprodukte|0|0|0|
-Hüttenkäse|Milchprodukte|0|0|0|
-Joghurt natur|Milchprodukte|1|0|0|Frisch meist ok
-Gouda jung|Milchprodukte|1|0|0|
-Gouda alt, Emmentaler, Bergkäse|Milchprodukte|2|0|0|Gereift = histaminreich
-Parmesan|Milchprodukte|2|0|0|Gereift
-Camembert, Brie|Milchprodukte|2|0|0|Gereift
-Eier|Fleisch, Fisch & Eier|1|0|0|Eiklar ist ein Histaminliberator; durchgegart meist ok
-Frisches Fleisch (Rind, Schwein, Geflügel)|Fleisch, Fisch & Eier|0|0|0|Frisch kaufen, schnell verarbeiten
-Hackfleisch|Fleisch, Fisch & Eier|1|0|0|Verdirbt schnell – ganz frisch verarbeiten
-Kochschinken|Fleisch, Fisch & Eier|1|0|0|
-Würstchen|Fleisch, Fisch & Eier|1|0|1|Teils Weizen oder Gewürzmischungen
-Salami|Fleisch, Fisch & Eier|2|0|0|Gereift
-Rohschinken (Parma, Serrano)|Fleisch, Fisch & Eier|2|0|0|Gereift
-Fisch frisch oder TK|Fleisch, Fisch & Eier|0|0|0|Nur fangfrisch oder direkt tiefgekühlt
-Thunfisch (Dose)|Fleisch, Fisch & Eier|2|0|0|
-Räucherlachs|Fleisch, Fisch & Eier|2|0|0|
-Makrele, Hering|Fleisch, Fisch & Eier|2|0|0|
-Garnelen, Meeresfrüchte|Fleisch, Fisch & Eier|2|0|0|
-Wasser|Getränke|0|0|0|
-Kräutertee|Getränke|0|0|0|
-Schwarzer und grüner Tee|Getränke|1|0|0|
-Kaffee|Getränke|1|0|0|Individuell
-Rotwein|Getränke|2|0|0|
-Weißwein, Sekt|Getränke|2|0|0|
-Bier|Getränke|2|0|2|Gerste
-Apfelsaft, Birnensaft|Getränke|0|2|0|
-Orangensaft|Getränke|2|1|0|
-Cola, Limonade|Getränke|1|1|0|Oft Glukose-Fruktose-Sirup
-Energy-Drinks|Getränke|2|1|0|
-Kombucha|Getränke|2|0|0|Fermentiert
-Hafermilch|Getränke|0|1|1|Nur mit glutenfreiem Hafer sicher
-Reismilch|Getränke|0|0|0|
-Mandelmilch|Getränke|1|0|0|
-Sojamilch|Getränke|1|1|0|
-Haushaltszucker|Süßes|0|1|0|In kleinen Mengen meist ok
-Traubenzucker|Süßes|0|0|0|Kann die Fruktose-Aufnahme verbessern
-Ahornsirup|Süßes|0|0|0|
-Reissirup|Süßes|0|0|0|
-Honig|Süßes|0|2|0|
-Agavendicksaft|Süßes|0|2|0|
-Schokolade, Kakao|Süßes|2|1|0|Histaminliberator
-Gummibärchen|Süßes|0|1|0|Zutaten prüfen
-Zuckerfreier Kaugummi|Süßes|0|2|0|Sorbit, Xylit
-Sorbit (E420)|Süßes|0|2|0|
-Xylit (E967)|Süßes|0|2|0|
-Sojasauce|Würzen|2|0|2|Fermentiert, meist mit Weizen – Tamari ist oft glutenfrei
-Wein- und Balsamicoessig|Würzen|2|0|0|
-Branntweinessig|Würzen|1|0|0|
-Senf|Würzen|1|0|0|
-Ketchup|Würzen|2|1|0|
-Hefeextrakt|Würzen|2|0|0|
-Gemüsebrühe (Fertig)|Würzen|2|1|1|Oft Hefeextrakt, Glutamat, Weizen
-Chili, Curry|Würzen|1|0|0|
-Frische Kräuter|Würzen|0|0|0|
-Salz, Pfeffer|Würzen|0|0|0|
-`;
-const FOODS = FOOD_RAW.trim().split("\n").map(l => { const [n,k,h,f,g,note] = l.split("|"); return {n,k,h:+h,f:+f,g:+g,note:note||""}; });
-
-/* ---------- Regeln für Zutatenlisten (auf normalisierten Text) ---------- */
-/* o:true = Ausnahme, überschreibt die Kategorie für diese Zutat */
-const RULES = [
-  // Ausnahmen Gluten
-  {re:/glu[ck]osesirup|glu[ck]ose-fru[ck]tose|dextrose|maltodextrin|glu[ck]ose\b/, g:0, o:true},
-  {re:/weizenstaerke/, g:1, o:true, why:"Weizenstärke – kann glutenfrei aufbereitet sein, Kennzeichnung prüfen"},
-  {re:/glutenfrei/, g:0, o:true},
-  // Gluten
-  {re:/weizen|dinkel|roggen|gerste|emmer|einkorn|kamut|khorasan|gruenkern|triticale|bulgur|couscous|seitan|griess|paniermehl|semmelbroesel|wheat|barley|\brye\b|spelt/, g:2, why:"Glutenhaltiges Getreide"},
-  {re:/gerstenmalz|malzextrakt|roestmalz|\bmalz\b|malt extract/, g:2, why:"Malz aus Gerste – glutenhaltig"},
-  {re:/gluten(?!frei)/, g:2, why:"Enthält Gluten"},
-  {re:/hafer|\boats?\b/, g:1, why:"Hafer – nur als glutenfrei gekennzeichnet sicher"},
-  {re:/(^|[^a-z])bier/, g:2, h:2, why:"Bier – Gerste, histaminreich"},
-  // Fructose
-  {re:/fru[ck]tose|fruchtzucker/, f:2, why:"Fruktose"},
-  {re:/invertzucker|invertzuckersirup/, f:2, why:"Invertzucker – zur Hälfte Fruktose"},
-  {re:/honig|honey/, f:2, why:"Honig – sehr fruktosereich"},
-  {re:/agave/, f:2, why:"Agavendicksaft – sehr fruktosereich"},
-  {re:/dicksaft|fruchtsuesse|birnendicksaft|apfeldicksaft/, f:2, why:"Fruchtdicksaft – fruktosereich"},
-  {re:/sorbit|e ?420(?!\d)/, f:2, why:"Sorbit – verschlechtert die Fruktose-Aufnahme"},
-  {re:/xylit|e ?967(?!\d)/, f:2, why:"Xylit (Zuckeralkohol)"},
-  {re:/mannit|e ?421(?!\d)/, f:2, why:"Mannit (Zuckeralkohol)"},
-  {re:/maltit|e ?965(?!\d)/, f:2, why:"Maltit (Zuckeralkohol)"},
-  {re:/isomalt|e ?953(?!\d)/, f:2, why:"Isomalt (Zuckeralkohol)"},
-  {re:/lactit|e ?966(?!\d)/, f:2, why:"Lactit (Zuckeralkohol)"},
-  {re:/erythrit|e ?968(?!\d)/, f:1, why:"Erythrit – meist besser verträglich als andere Zuckeralkohole"},
-  {re:/inulin|oligofru[ck]tose|fructooligo|chicoreewurzel/, f:1, why:"Fruktane"},
-  {re:/apfel|birne|mango|pflaume|dattel|feige|rosine|trockenobst|trockenfruecht/, f:2, why:"Fruktosereiches Obst"},
-  {re:/fruchtsaft|saftkonzentrat|fruchtpulver|fruchtzubereitung/, f:1, why:"Fruchtsaft/-zubereitung – oft fruktosereich"},
-  {re:/zwiebel|knoblauch|lauch/, f:1, why:"Fruktane – kleine Mengen oft ok"},
-  // Histamin
-  {re:/hefeextrakt|hefe-extrakt|yeast extract|wuerze\b|speisewuerze/, h:2, why:"Hefeextrakt/Würze – histaminreich"},
-  {re:/soja ?sauce|sojasosse|soja-sosse|shoyu|tamari/, h:2, why:"Sojasauce – fermentiert"},
-  {re:/tomat/, h:2, why:"Tomate – Histaminliberator"},
-  {re:/spinat/, h:2, why:"Spinat – histaminreich"},
-  {re:/aubergine/, h:2, why:"Aubergine – histaminreich"},
-  {re:/avocado/, h:2, why:"Avocado – histaminreich"},
-  {re:/sauerkraut|kimchi|miso|tempeh|kombucha|fermentiert/, h:2, why:"Fermentiert – histaminreich"},
-  {re:/parmesan|emmentaler|bergkaese|cheddar|gruyere|grana padano|pecorino|hartkaese|reifekaese|camembert|\bbrie\b|gorgonzola|roquefort/, h:2, why:"Gereifter Käse – histaminreich"},
-  {re:/kaese/, h:1, why:"Käse – je nach Reifegrad"},
-  {re:/(^|[^a-z])(rot|weiss|dessert|koch)?wein(?!stein|saeure)/, h:2, why:"Wein – histaminreich"},
-  {re:/sekt|branntwein|likoer|spirituose|alkohol|(^|[^a-z])rum([^a-z]|$)|ethanol/, h:2, why:"Alkohol – hemmt den Histaminabbau"},
-  {re:/balsamico|weinessig/, h:2, why:"Wein-/Balsamicoessig – histaminreich"},
-  {re:/essig/, h:1, why:"Essig"},
-  {re:/salami|rohschinken|parmaschinken|serrano|chorizo|rohwurst|landjaeger/, h:2, why:"Gereifte Wurst – histaminreich"},
-  {re:/thunfisch|makrele|sardine|sardelle|anchovi|hering|fischsauce|thun\b/, h:2, why:"Fisch – oft histaminreich"},
-  {re:/garnele|shrimp|krabbe|meeresfrue|muschel|tintenfisch|krebs/, h:2, why:"Meeresfrüchte – histaminreich"},
-  {re:/geraeuchert|raeucher/, h:1, why:"Geräuchert"},
-  {re:/kakao|schokolade|cacao|cocoa/, h:2, why:"Kakao – Histaminliberator"},
-  {re:/erdbeer/, h:2, why:"Erdbeere – Histaminliberator"},
-  {re:/orange|zitrus|grapefruit|mandarin|limette|pomelo/, h:2, why:"Zitrusfrucht – Histaminliberator"},
-  {re:/zitronensaft|zitrone(?!nsaeure)|zitronenschale/, h:1, why:"Zitrone"},
-  {re:/ananas/, h:2, f:1, why:"Ananas – Histaminliberator"},
-  {re:/kiwi/, h:2, why:"Kiwi – Histaminliberator"},
-  {re:/banane/, h:1, why:"Banane"},
-  {re:/erdnuss|walnuss|cashew|pekannuss/, h:2, why:"Nüsse – Histaminliberator"},
-  {re:/haselnuss|mandel/, h:1, why:"Nüsse"},
-  {re:/glutamat|e ?62[0-5](?!\d)|geschmacksverstaerker/, h:1, why:"Glutamat – kann Beschwerden verstärken"},
-  {re:/benzoe|benzoat|e ?21[0-3](?!\d)/, h:1, why:"Benzoat (Konservierungsstoff)"},
-  {re:/sulfit|schwefeldioxid|disulfit|e ?22[0-8](?!\d)/, h:1, why:"Sulfit (Konservierungsstoff)"},
-  {re:/tartrazin|azorubin|cochenillerot|gelborange|allurarot|e ?1(02|10|22|24|29)(?!\d)/, h:1, why:"Azofarbstoff"},
-  {re:/eiklar|huehnereiweiss|eiweisspulver/, h:1, why:"Eiklar – Histaminliberator"},
-  {re:/weizenkeim/, h:2, why:"Weizenkeime – histaminreich"},
-  {re:/bohne|linse|kichererbse/, h:1, f:1, why:"Hülsenfrüchte"},
-  {re:/chili|curry|cayenne/, h:1, why:"Scharfe Gewürze"},
-  {re:/pilz|champignon/, h:1, why:"Pilze"},
-  {re:/zitronensaeure|citronensaeure|e ?330(?!\d)|ascorbinsaeure|weinsaeure/, h:0, o:true},
-];
-
-function rateIngredient(name, ctx){
-  const n = norm(name);
-  const res = {h:null,f:null,g:null}, why = {h:[],f:[],g:[]}, ov = {h:null,f:null,g:null}, ovWhy = {h:[],f:[],g:[]};
-  for (const r of RULES){
-    if (!r.re.test(n)) continue;
-    for (const c of ["h","f","g"]){
-      if (r[c] == null) continue;
-      if (r.o){ ov[c] = ov[c]==null ? r[c] : Math.min(ov[c], r[c]); if (r.why) ovWhy[c].push(r.why); }
-      else { res[c] = Math.max(res[c] ?? 0, r[c]); if (r[c] > 0 && r.why && !why[c].includes(r.why)) why[c].push(r.why); }
-    }
-  }
-  for (const c of ["h","f","g"]) if (ov[c] != null){ res[c] = ov[c]; why[c] = ovWhy[c]; }
-  if (ctx && ctx.glutenfrei && res.g != null){ res.g = 0; why.g = []; }
-  return {res, why};
-}
-
-function splitIngredients(text){
-  let t = String(text||"").replace(/\s+/g," ").trim().replace(/^zutaten\s*:?\s*/i,"");
-  let spuren = null;
-  const m = t.match(/(kann\s+(auch\s+)?spuren|spuren\s+von|enth(ä|ae)lt\s+spuren|may contain)[\s\S]*$/i);
-  if (m){ spuren = m[0]; t = t.slice(0, m.index); }
-  const parts = []; let depth = 0, cur = "";
-  for (const ch of t){
-    if ("([{".includes(ch)) depth++;
-    if (")]}".includes(ch)) depth = Math.max(0, depth-1);
-    if ((ch === "," || ch === ";") && depth === 0){ parts.push(cur); cur = ""; } else cur += ch;
-  }
-  parts.push(cur);
-  return {parts: parts.map(p => p.trim().replace(/[.\s]+$/,"")).filter(p => p.length > 1), spuren};
-}
-
-/* items: [{name, ai?:{h,f,g,grund}}] */
-function evaluate(items, spuren, extra){
-  const ctx = {glutenfrei: !!(extra && extra.glutenfrei) || items.some(i => /glutenfrei/.test(norm(i.name)))};
-  const act = activeCats();
-  const out = items.map(it => {
-    const loc = rateIngredient(it.name, ctx);
-    const r = {}, why = {}, src = {};
-    for (const c of ["h","f","g"]){
-      if (loc.res[c] != null){ r[c] = loc.res[c]; why[c] = loc.why[c].join(" · "); src[c] = "li"; }
-      else if (it.ai && Number.isInteger(it.ai[c])){ r[c] = ctx.glutenfrei && c==="g" ? 0 : Math.max(0,Math.min(2,it.ai[c])); why[c] = it.ai.grund || ""; src[c] = "ki"; }
-      else { r[c] = 0; why[c] = ""; src[c] = "none"; }
-    }
-    return {name: it.name, r, why, src};
-  });
-  if (spuren && !ctx.glutenfrei){
-    const s = rateIngredient(spuren, {});
-    if ((s.res.g ?? 0) >= 1){
-      const v = profile.gs ? 2 : 1;
-      out.push({name: spuren.replace(/\s+/g," ").trim(), r:{h:0,f:0,g:v}, why:{h:"",f:"",g:"Spuren von glutenhaltigem Getreide"}, src:{h:"none",f:"none",g:"li"}, trace:true});
-    }
-  }
-  const cat = {};
-  for (const c of act) cat[c] = out.reduce((m,i) => Math.max(m, i.r[c]), 0);
-  const total = act.length ? Math.max(...act.map(c => cat[c])) : 0;
-  return {items: out, cat, total, cats: act};
-}
-
-/* ---------- Speicher: privat pro Person (db), sonst lokal ---------- */
-let profile = {h:true, f:true, g:true, gs:false};
-let history = [];
-const LS = {get(k){try{return JSON.parse(localStorage.getItem(k))}catch(e){return null}}, set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){toastErr("Speichern nicht möglich – Speicher voll?")}}};
-function activeCats(){ return ["h","f","g"].filter(c => profile[c]); }
-function saveProfile(){ LS.set("vt_profile", profile); renderSub(); }
-function saveHistory(){ history = history.slice(0, 150); LS.set("vt_history", {items: history}); }
-function initStore(){
-  const lp = LS.get("vt_profile"); if (lp) profile = Object.assign(profile, lp);
-  const lh = LS.get("vt_history"); if (lh && Array.isArray(lh.items)) history = lh.items;
-  renderAll();
-  $("#storeInfo").textContent = "Profil und Verlauf werden nur auf diesem Gerät gespeichert.";
-}
-
-/* ---------- Texterkennung auf dem Gerät (Tesseract.js, ohne Claude) ---------- */
-const TESS_SRC = "https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js";
-let ocrWorker = null;
-function loadScript(src){
-  return new Promise((res, rej) => { const s = document.createElement("script"); s.src = src; s.onload = res; s.onerror = () => rej(new Error("script")); document.head.appendChild(s); });
-}
-async function getOcrWorker(onProg){
-  if (ocrWorker) return ocrWorker;
-  if (!window.Tesseract) await loadScript(TESS_SRC);
-  const base = {logger: m => onProg && onProg(m)};
-  try { ocrWorker = await Tesseract.createWorker("deu", 1, base); }
-  catch(e){ ocrWorker = await Tesseract.createWorker("deu", 1, Object.assign({}, base, {cacheMethod:"none"})); }
-  return ocrWorker;
-}
-async function prepForOcr(file){
-  const url = URL.createObjectURL(file);
-  try{
-    const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = url; });
-    const target = 2200, s = Math.min(2, target / Math.max(img.naturalWidth, img.naturalHeight));
-    const c = document.createElement("canvas"); c.width = Math.round(img.naturalWidth*s); c.height = Math.round(img.naturalHeight*s);
-    const ctx = c.getContext("2d"); ctx.drawImage(img, 0, 0, c.width, c.height);
-    const d = ctx.getImageData(0, 0, c.width, c.height), p = d.data;
-    let min = 255, max = 0;
-    for (let i = 0; i < p.length; i += 4){ const g = 0.299*p[i] + 0.587*p[i+1] + 0.114*p[i+2]; p[i] = g; if (g < min) min = g; if (g > max) max = g; }
-    const span = Math.max(1, max - min);
-    for (let i = 0; i < p.length; i += 4){ const v = Math.max(0, Math.min(255, (p[i]-min) * 255 / span)); p[i] = p[i+1] = p[i+2] = v; }
-    ctx.putImageData(d, 0, 0);
-    return await new Promise(res => c.toBlob(b => res(b || file), "image/png"));
-  } finally { URL.revokeObjectURL(url); }
-}
-function cleanOcrText(t){
-  let s = String(t||"").replace(/-\s*\n\s*/g, "").replace(/\s*\n\s*/g, " ").replace(/\s{2,}/g, " ").trim();
-  const m = s.match(/zutaten\s*:?/i); if (m) s = s.slice(m.index);
-  return s;
-}
-$("#ocrBtn").addEventListener("click", () => $("#photoOcr").click());
-$("#photoOcr").addEventListener("change", async e => {
-  const file = e.target.files && e.target.files[0]; e.target.value = "";
-  if (!file) return;
-  const btn = $("#ocrBtn"), prog = $("#ocrProg"), err = $("#photoErr"); err.style.display = "none";
-  const pv = $("#preview"); pv.src = URL.createObjectURL(file); pv.style.display = "block";
-  $("#result").innerHTML = "";
-  btn.disabled = true; const old = btn.innerHTML; btn.innerHTML = '<div class="spin"></div> Text wird erkannt…';
-  prog.style.display = "block"; prog.textContent = ocrWorker ? "Erkenne Text…" : "Lade Texterkennung (beim ersten Mal einige MB)…";
-  try{
-    const w = await getOcrWorker(m => {
-      if (m && m.status === "recognizing text") prog.textContent = "Erkenne Text… " + Math.round((m.progress||0)*100) + " %";
-      else if (m && m.status && /load/i.test(m.status)) prog.textContent = "Lade Texterkennung… " + Math.round((m.progress||0)*100) + " %";
-    });
-    const blob = await prepForOcr(file);
-    const {data} = await w.recognize(blob);
-    const text = cleanOcrText(data && data.text);
-    if (text.length < 8){ err.textContent = "Es wurde kaum Text erkannt. Fotografiere die Zutatenliste möglichst gerade, nah und mit gutem Licht."; err.style.display = "block"; return; }
-    $("#txt").value = text;
-    prog.innerHTML = "Text erkannt – bitte kurz auf Lesefehler prüfen (z. B. „Sorbit“, „Weizen“) und dann <b>Prüfen</b> tippen.";
-    $("#txt").scrollIntoView({behavior:"smooth", block:"center"});
-    $("#txt").classList.add("hl"); setTimeout(() => $("#txt").classList.remove("hl"), 2500);
-    return;
-  }catch(x){
-    ocrWorker = null;
-    err.textContent = "Die Texterkennung konnte nicht starten (Internetverbindung?). Alternativ: Text per Live Text kopieren und unten einfügen.";
-    err.style.display = "block"; prog.style.display = "none";
-  }finally{ btn.disabled = false; btn.innerHTML = old; }
-});
-
-/* ---------- Barcode + Open Food Facts ---------- */
-const SCAN_SRC = "https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js";
-let scanner = null, scanning = false;
-function info(html){ const el = $("#scanInfo"); if (!html){ el.style.display = "none"; return; } el.innerHTML = html; el.style.display = "block"; }
-async function startScan(){
-  info("");
-  $("#result").innerHTML = "";
-  try{
-    if (!window.Html5Qrcode) await loadScript(SCAN_SRC);
-    $("#scanWrap").style.display = "block"; $("#scanBtn").style.display = "none";
-    const F = Html5QrcodeSupportedFormats;
-    scanner = scanner || new Html5Qrcode("reader", {formatsToSupport:[F.EAN_13, F.EAN_8, F.UPC_A, F.UPC_E], experimentalFeatures:{useBarCodeDetectorIfSupported:true}, verbose:false});
-    scanning = true;
-    await scanner.start({facingMode:"environment"}, {fps:12, qrbox:(w,h) => ({width:Math.min(300, w*0.85), height:Math.min(150, h*0.5)}), aspectRatio:1.3333},
-      code => { if (!scanning) return; scanning = false; stopScan().then(() => lookup(code)); }, () => {});
-  }catch(e){
-    scanning = false; $("#scanWrap").style.display = "none"; $("#scanBtn").style.display = "";
-    info("Die Kamera konnte nicht gestartet werden. Erlaube den Kamerazugriff (iPhone: Einstellungen → Safari → Kamera) oder tippe die Barcode-Nummer ein.");
-  }
-}
-async function stopScan(){
-  scanning = false;
-  try{ if (scanner && scanner.isScanning) await scanner.stop(); }catch(e){}
-  $("#scanWrap").style.display = "none"; $("#scanBtn").style.display = "";
-}
-$("#scanBtn").addEventListener("click", startScan);
-$("#scanStop").addEventListener("click", stopScan);
-$("#eanBtn").addEventListener("click", () => { const c = $("#eanIn").value.replace(/\D/g,""); if (c.length >= 8) lookup(c); else info("Bitte die komplette Nummer unter dem Barcode eingeben (8–13 Ziffern)."); });
-$("#eanIn").addEventListener("keydown", e => { if (e.key === "Enter") $("#eanBtn").click(); });
-
-const OFF_FIELDS = "product_name,product_name_de,generic_name_de,brands,ingredients_text_de,ingredients_text,ingredients_text_en,allergens_tags,traces_tags,labels_tags,lang";
-async function lookup(code){
-  try{ if (navigator.vibrate) navigator.vibrate(60); }catch(e){}
-  $("#eanIn").value = code;
-  info('<div class="row" style="justify-content:flex-start;gap:10px"><div class="spin" style="flex:none"></div><span>Suche Produkt ' + esc(code) + ' …</span></div>');
-  let j;
-  try{
-    const r = await fetch("https://world.openfoodfacts.org/api/v2/product/" + encodeURIComponent(code) + ".json?lc=de&fields=" + OFF_FIELDS);
-    j = await r.json();
-  }catch(e){ info("Keine Verbindung zu Open Food Facts. Bist du online?"); return; }
-  if (!j || j.status !== 1 || !j.product){
-    info("Produkt <b>" + esc(code) + "</b> ist nicht in Open Food Facts. Fotografiere stattdessen die Zutatenliste. " +
-      '<a href="https://world.openfoodfacts.org/cgi/product.pl?type=add&code=' + esc(code) + '">Produkt bei Open Food Facts eintragen</a>');
-    return;
-  }
-  const p = j.product;
-  const name = [p.brands && p.brands.split(",")[0].trim(), p.product_name_de || p.product_name || p.generic_name_de].filter(Boolean).join(" – ") || ("Produkt " + code);
-  const txt = (p.ingredients_text_de || p.ingredients_text || "").replace(/_/g, "");
-  const labels = p.labels_tags || [], allergens = p.allergens_tags || [], traces = p.traces_tags || [];
-  const glutenfrei = labels.some(l => /no-gluten|gluten-free|glutenfrei/.test(l));
-  if (!txt.trim() && !allergens.length){
-    info("<b>" + esc(name) + "</b> ist bekannt, aber ohne Zutatenliste. Fotografiere die Zutatenliste, um sie zu prüfen.");
-    return;
-  }
-  const {parts, spuren} = splitIngredients(txt);
-  const items = parts.map(n => ({name:n}));
-  // Allergenkennzeichnung als zusätzliche Sicherheitsstufe für Gluten
-  if (allergens.includes("en:gluten") && !glutenfrei && !items.some(i => (rateIngredient(i.name,{}).res.g||0) >= 2))
-    items.push({name:"Allergenkennzeichnung: Gluten"});
-  let tr = spuren;
-  if (!tr && traces.includes("en:gluten")) tr = "Kann Spuren von Gluten enthalten";
-  const ev = evaluate(items, tr, {glutenfrei});
-  info(txt.trim() ? "" : "Für dieses Produkt ist nur die Allergenkennzeichnung hinterlegt, keine vollständige Zutatenliste – Histamin und Fructose sind deshalb nicht bewertbar.");
-  const entry = addHistory(name, ev, "barcode", code);
-  showResult(entry, $("#result"));
-  $("#result").scrollIntoView({behavior:"smooth", block:"start"});
-}
-
-$("#txtBtn").addEventListener("click", () => {
-  $("#ocrProg").style.display = "none";
-  const t = $("#txt").value.trim(); if (!t) { $("#txt").focus(); return; }
-  const {parts, spuren} = splitIngredients(t);
-  if (!parts.length) return;
-  const ev = evaluate(parts.map(p => ({name:p})), spuren);
-  const entry = addHistory($("#txtName").value.trim() || "Eigene Eingabe", ev, "text");
-  showResult(entry, $("#result"));
-  $("#result").scrollIntoView({behavior:"smooth", block:"start"});
-});
-
-function addHistory(name, ev, src, code){
-  const entry = {id: Date.now().toString(36)+Math.random().toString(36).slice(2,6), ts: Date.now(), name, src,
-    total: ev.total, cat: ev.cat, cats: ev.cats, items: ev.items, code: code || null};
-  history.unshift(entry); saveHistory(); renderHist();
-  return entry;
-}
-
-/* ---------- Anzeige ---------- */
-function verdictText(t, cats){
-  if (!cats.length) return "Kein Profil aktiv – wähle im Profil deine Unverträglichkeiten.";
-  return ["Keine problematischen Zutaten gefunden.","Einige Zutaten mit Vorsicht genießen.","Enthält Zutaten, die du meiden solltest."][t];
-}
-function showResult(e, el){
-  const cats = e.cats || [];
-  const flagged = e.items.filter(i => cats.some(c => i.r[c] > 0)).sort((a,b) => Math.max(...cats.map(c=>b.r[c])) - Math.max(...cats.map(c=>a.r[c])));
-  const chips = cats.map(c => `<span class="chip"><i class="c${e.cat[c]}"></i>${CATS[c]}: ${LABEL[e.cat[c]]}</span>`).join("");
-  const ingHtml = i => {
-    const parts = cats.filter(c => i.r[c] > 0).map(c =>
-      `<div class="why"><span class="chip" style="padding:2px 8px;font-size:12px"><i class="c${i.r[c]}"></i>${CATS[c]}</span> ${esc(i.why[c] || LABEL[i.r[c]])}${i.src[c]==="ki" ? '<span class="tag ki">KI</span>' : ''}</div>`).join("");
-    return `<div class="ing"><b>${esc(i.name)}</b>${parts}</div>`;
-  };
-  el.innerHTML = `
-  <div class="card">
-    <div class="verdict v${e.total}"><div class="dot">${["✓","!","✕"][e.total]}</div><div><h3>${LABEL[e.total]}</h3><p>${esc(verdictText(e.total, cats))}</p></div></div>
-    <div class="chips">${chips}</div>
-    <p class="small muted" style="margin:12px 0 0"><b style="color:var(--ink)">${esc(e.name)}</b> · ${new Date(e.ts).toLocaleString("de-DE",{dateStyle:"short",timeStyle:"short"})}</p>
-  </div>
-  ${flagged.length ? `<div class="card"><h2>Auffällige Zutaten</h2>${flagged.map(ingHtml).join("")}</div>` : ""}
-  <div class="card"><details><summary>Alle ${e.items.length} Zutaten anzeigen</summary><div style="margin-top:8px">${e.items.map(i =>
-    `<div class="ing">${esc(i.name)} ${cats.map(c => `<i class="c${i.r[c]}" style="display:inline-block;width:9px;height:9px;border-radius:50%;margin-left:3px" title="${CATS[c]}"></i>`).join("")}</div>`).join("")}</div></details>
-  <p class="small muted" style="margin:10px 0 0">Zutaten ohne Treffer in der Regelliste gelten als unproblematisch.</p></div>`;
-}
-
-/* Lebensmittel */
-let foodCat = "Alle";
-function renderCats(){
-  const ks = ["Alle", ...new Set(FOODS.map(f => f.k))];
-  $("#cats").innerHTML = ks.map(k => `<button class="${k===foodCat?"on":""}" data-k="${esc(k)}">${esc(k)}</button>`).join("");
-}
-$("#cats").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; foodCat = b.dataset.k; renderCats(); renderFoods(); });
-$("#q").addEventListener("input", () => renderFoods());
-function dotsHtml(r, cats){
-  return `<div class="dots">${cats.map(c => `<span class="c${r[c]}" title="${CATS[c]}: ${LABEL[r[c]]}">${CATS[c][0]}</span>`).join("")}</div>`;
-}
-function renderFoods(){
-  const q = norm($("#q").value.trim()), cats = activeCats();
-  let list = FOODS.filter(f => (foodCat === "Alle" || f.k === foodCat) && (!q || norm(f.n).includes(q) || norm(f.note).includes(q)));
-  const worst = f => cats.length ? Math.max(...cats.map(c => f[c])) : 0;
-  list.sort((a,b) => worst(a) - worst(b) || a.n.localeCompare(b.n, "de"));
-  $("#foodList").innerHTML = list.length
-    ? list.map(f => `<div class="food"><div class="n">${esc(f.n)}${f.note ? `<small>${esc(f.note)}</small>` : ""}</div>${dotsHtml(f, cats)}</div>`).join("")
-    : `<p class="muted" style="margin:0">Kein Treffer in der Liste.</p>`;
-}
-/* Verlauf */
-function renderHist(){
-  const el = $("#histList");
-  if (!history.length){ el.innerHTML = '<h2>Verlauf</h2><p class="muted" style="margin:0">Noch keine Prüfungen. Geprüfte Produkte erscheinen hier.</p>'; return; }
-  el.innerHTML = '<h2>Verlauf</h2>' + history.map(h => `<div class="hist" data-id="${h.id}"><i class="c${h.total}"></i><div class="n"><b>${esc(h.name)}</b><small>${new Date(h.ts).toLocaleDateString("de-DE",{day:"2-digit",month:"2-digit",year:"2-digit"})} · ${LABEL[h.total]} · ${h.src==="foto"?"Foto":h.src==="barcode"?"Barcode":"Text"}</small></div><span class="muted">›</span></div>`).join("");
-}
-$("#histList").addEventListener("click", e => {
-  const row = e.target.closest(".hist"); if (!row) return;
-  const h = history.find(x => x.id === row.dataset.id); if (!h) return;
-  const inn = $("#sheetIn");
-  inn.innerHTML = `<div class="row" style="justify-content:space-between"><button class="ghost" id="shDel" style="flex:none;color:var(--bad)">Löschen</button><button class="ghost" id="shClose" style="flex:none">Fertig</button></div><div id="shRes"></div>`;
-  showResult(h, $("#shRes"));
-  $("#sheet").classList.add("on");
-  $("#shClose").onclick = closeSheet;
-  $("#shDel").onclick = () => {
-    const b = $("#shDel");
-    if (b.dataset.c){ history = history.filter(x => x.id !== h.id); saveHistory(); renderHist(); closeSheet(); }
-    else { b.dataset.c = "1"; b.textContent = "Wirklich löschen?"; }
-  };
-});
-function closeSheet(){ $("#sheet").classList.remove("on"); }
-$("#sheet").addEventListener("click", e => { if (e.target.id === "sheet") closeSheet(); });
-
-/* Profil */
-document.querySelectorAll("[data-p]").forEach(inp => inp.addEventListener("change", () => {
-  profile[inp.dataset.p] = inp.checked; saveProfile(); renderFoods();
-}));
-function renderProfile(){ document.querySelectorAll("[data-p]").forEach(inp => inp.checked = !!profile[inp.dataset.p]); }
-function renderSub(){ const a = activeCats(); $("#sub").textContent = a.length ? "Profil: " + a.map(c => CATS[c]).join(" · ") : "Kein Profil aktiv"; }
-
-let errT; function toastErr(m){ const el = $("#photoErr"); el.textContent = m; el.style.display = "block"; clearTimeout(errT); errT = setTimeout(() => el.style.display = "none", 6000); }
-
-/* Navigation */
-document.querySelectorAll("nav button").forEach(b => b.addEventListener("click", () => {
-  document.querySelectorAll("nav button").forEach(x => x.classList.toggle("on", x === b));
-  document.querySelectorAll(".view").forEach(v => v.classList.toggle("on", v.id === "v-" + b.dataset.v));
-  window.scrollTo(0, 0);
-}));
-
-function renderAll(){ renderProfile(); renderSub(); renderCats(); renderFoods(); renderHist(); }
-initStore();
-</script>
+<script src="data.js?v=2"></script>
+<script src="engine.js?v=2"></script>
+<script src="app.js?v=2"></script>
 </body>
 </html>
