@@ -88,7 +88,13 @@ function migrateEntry(e){
     raw:{mode:"label", items:e.items.filter(i => !i.trace).map(i => /^Allergenkennzeichnung/.test(i.name) ? {n:i.name, fix:true} : {n:i.name}), spuren: tr ? tr.name : null}};
 }
 function saveProfile(){ LS.set("vt_profile", profile); hasStoredProfile = true; if (typeof syncPerson === "function") syncPerson(); }
-function saveHistory(){ history = history.slice(0, 300); LS.set("vt_history", {items: history}); }
+/* Speichern: Gegessenes, Bewertetes und Beschwerden bleiben (bis 3000), reine Prüfungen nur die letzten 60 */
+function saveHistory(){
+  let scans = 0;
+  history = history.filter(h => (h.eaten || h.reaction || h.src === "symptom") ? true : (++scans <= 60)).slice(0, 3000);
+  LS.set("vt_history", {items: history});
+}
+const isEaten = h => !!(h.eaten || h.reaction);
 const activeCats = () => KEYS.filter(c => profile.on[c]);
 
 function addEntry(name, raw, src, code){
@@ -97,11 +103,15 @@ function addEntry(name, raw, src, code){
   return e;
 }
 function refreshAll(){
-  renderSub(); renderFoods(); renderRecipes(); renderDiary(); renderProfile(); renderRecent(); renderCheckExtras(); renderFeatures();
+  renderSub(); renderFoods(); renderRecipes(); renderDiary(); renderProfile(); renderRecent(); renderShell(); renderFeatures();
   if (sheetCtx && sheetCtx.type === "entry" && $("#shRes")){ const e = history.find(x => x.id === sheetCtx.id); if (e) showResult(e, $("#shRes")); }
 }
 
 /* ---------- Ergebnis-Anzeige ---------- */
+function eatenHtml(e){
+  const on = isEaten(e);
+  return `<div class="eat-mark"><button type="button" class="btn btn-sm ${on ? "btn-primary" : "btn-outline"}" data-eat="${e.id}" aria-pressed="${on}">${on ? "✓ Gegessen" + (e.eatenAt ? " · " + fmtTime(e.eatenAt) : "") : "Ja, gegessen"}</button><span class="hint">${on ? "Zählt fürs Tagebuch." : "Nur Gegessenes zählt fürs Tagebuch."}</span></div>`;
+}
 function reactHtml(e, attr){
   attr = attr || (k => `data-react="${k}" data-id="${e.id}"`);
   return `<div class="seg react" role="group" aria-label="Wie hast du es vertragen?">${Object.keys(REACT).map(k =>
@@ -141,16 +151,18 @@ function showResult(e, el){
   el.innerHTML = `
   <div class="verdict v${ev.total}">
     <div class="vi" aria-hidden="true">${SYM[ev.total]}</div>
-    <div><p class="vl">${noProfile ? "Kein Profil aktiv" : LABEL[ev.total]}</p><p class="vn">${esc(e.name)}</p></div>
+    <div><p class="vl">${noProfile ? "Kein Profil aktiv" : LABEL[ev.total]}${resultWho()}</p><p class="vn">${esc(e.name)}</p></div>
   </div>
   <p class="reason">${esc(reasonText(ev))}</p>
   ${noProfile ? `<button type="button" class="btn btn-secondary btn-block" data-go="prof">Profil einrichten</button>` : `<div class="chips" aria-label="Bewertung je Kategorie">${chips}</div>`}
+  ${resultExtras(e, ev, "top")}
   ${flagged.length ? `<section class="block"><h3 class="block-title">Auffällige Zutaten <span class="n">(${flagged.length})</span></h3><ul class="list">${flagged.map(ingHtml).join("")}</ul></section>` : ""}
-  ${resultExtras(e, ev)}
+  ${resultExtras(e, ev, "bottom")}
   <section class="block">
-    <h3 class="block-title">Schon gegessen? Wie hast du es vertragen?</h3>
+    <h3 class="block-title">Gegessen? Wie hast du es vertragen?</h3>
+    ${eatenHtml(e)}
     ${reactHtml(e)}
-    <p class="hint" style="margin-top:6px">Deine Bewertung landet im Tagebuch und hilft der Analyse.</p>
+    <p class="hint" style="margin-top:6px">Bewertest du es, landet es automatisch im Tagebuch und hilft der Analyse.</p>
   </section>
   <details class="block disc"><summary>${SVG.chev}Alle ${ev.items.length} Zutaten anzeigen</summary><ul class="list">${ev.items.map(i => {
     const bad = cats.filter(c => i.lvl[c] > 0);
@@ -165,12 +177,18 @@ function showResult(e, el){
   };
 }
 function handleActions(ev, rerender){
-  const b = ev.target.closest("[data-react],[data-mk]"); if (!b) return;
-  const sel = b.dataset.react ? `[data-react="${b.dataset.react}"][data-id="${b.dataset.id}"]` : `[data-mk="${b.dataset.mk}"][data-key="${CSS.escape(b.dataset.key)}"]`;
+  const b = ev.target.closest("[data-react],[data-mk],[data-eat]"); if (!b) return;
+  const sel = b.dataset.eat ? `[data-eat="${b.dataset.eat}"]` : b.dataset.react ? `[data-react="${b.dataset.react}"][data-id="${b.dataset.id}"]` : `[data-mk="${b.dataset.mk}"][data-key="${CSS.escape(b.dataset.key)}"]`;
   const scope = b.closest("#sheetIn, .view");
-  if (b.dataset.react){
+  if (b.dataset.eat){
+    const e = history.find(x => x.id === b.dataset.eat); if (!e) return;
+    if (isEaten(e)){ e.eaten = false; e.reaction = null; e.eatenAt = null; toast("Aus dem Tagebuch entfernt"); }
+    else { e.eaten = true; e.eatenAt = Date.now(); toast("Im Tagebuch als gegessen gespeichert"); }
+    saveHistory();
+  } else if (b.dataset.react){
     const e = history.find(x => x.id === b.dataset.id); if (!e) return;
     e.reaction = e.reaction === b.dataset.react ? null : b.dataset.react;
+    if (e.reaction && !e.eaten){ e.eaten = true; e.eatenAt = e.eatenAt || Date.now(); }
     saveHistory(); toast(e.reaction ? "Im Tagebuch gespeichert: " + REACT[e.reaction] : "Bewertung entfernt");
   } else {
     const k = b.dataset.key, v = b.dataset.mk;
@@ -201,7 +219,7 @@ function closeSheet(){
   const s = $("#sheet"); if (s.hidden) return;
   s.hidden = true; s.classList.remove("on"); document.body.classList.remove("lock");
   sheetCtx = null; $("#sheetIn").onclick = null;
-  renderDiary(); renderFoods(); renderRecipes(); renderProfile(); renderRecent(); renderCheckExtras();
+  renderDiary(); renderFoods(); renderRecipes(); renderProfile(); renderRecent(); renderShell();
   if (sheetReturn && document.contains(sheetReturn)) sheetReturn.focus({preventScroll:true});
   sheetReturn = null;
 }
@@ -547,6 +565,7 @@ async function lookup(code, where){
   const e = addEntry(name, pr.raw, "barcode", code);
   renderDiary(); renderRecent();
   openEntrySheet(e, {fromCheck:true, note});
+  return e;
 }
 
 $("#txtBtn").addEventListener("click", () => {
@@ -632,7 +651,7 @@ function openFoodSheet(f){
     const fr = ev.target.closest("[data-fr]");
     if (fr){
       const e = addEntry(f.n, {mode:"food", items:[{n:f.n, x:Object.fromEntries(KEYS.map(c => [c, f[c] || 0])), note:f.note}]}, "food");
-      e.reaction = fr.dataset.fr; saveHistory(); renderDiary(); closeSheet(); toast("Im Tagebuch gespeichert: " + REACT[e.reaction]); return;
+      e.reaction = fr.dataset.fr; e.eaten = true; e.eatenAt = Date.now(); saveHistory(); renderDiary(); closeSheet(); toast("Im Tagebuch gespeichert: " + REACT[e.reaction]); return;
     }
     handleActions(ev, () => { openFoodSheet(f); renderFoods(); });
   };
@@ -667,12 +686,13 @@ function renderRecipes(){
 }
 $("#recipeList").addEventListener("click", ev => {
   const sh = ev.target.closest("[data-shop-r]");
-  if (sh){ const n = addShop(RECIPES[+sh.dataset.shopR].z.map(z => recipeItem(z).n).filter(x => !/^(salz|pfeffer|wasser)/i.test(x))); toast(n ? n + " Zutaten auf die Einkaufsliste gesetzt" : "Steht schon alles auf der Liste"); renderCheckExtras(); return; }
+  if (sh){ const n = addShop(RECIPES[+sh.dataset.shopR].z.map(z => recipeItem(z).n).filter(x => !/^(salz|pfeffer|wasser)/i.test(x))); toast(n ? n + " Zutaten auf die Einkaufsliste gesetzt" : "Steht schon alles auf der Liste"); renderShell(); return; }
   const b = ev.target.closest("[data-rr]"); if (!b) return;
   const i = +b.dataset.ri, r = RECIPES[i];
   let e = recipeEntry[i] && history.find(h => h.id === recipeEntry[i]);
   if (!e){ e = addEntry(r.t, recipeRaw(r), "recipe"); recipeEntry[i] = e.id; }
   e.reaction = e.reaction === b.dataset.rr ? null : b.dataset.rr;
+  e.eaten = !!e.reaction || e.eaten; if (e.eaten && !e.eatenAt) e.eatenAt = Date.now();
   saveHistory(); renderRecipes(); renderDiary();
   restoreFocus($("#recipeList"), `[data-rr="${b.dataset.rr}"][data-ri="${i}"]`);
   toast(e.reaction ? "Im Tagebuch gespeichert: " + REACT[e.reaction] : "Bewertung entfernt");
@@ -720,21 +740,24 @@ function renderDiary(){
   }
   const openMore = $("#analysis details[open]");
   if (a.n >= 5) h += diaryAnalysisExtras();
+  h += diaryAnalysisActions();
   $("#analysis").innerHTML = h;
   $("#analysisTools").innerHTML = diaryExtrasTop();
   if (openMore){ const d = $("#analysis details"); if (d) d.open = true; }
 
   const el = $("#histList");
-  const mineE = myEntries();
-  if (!mineE.length){ el.innerHTML = `<div class="card empty">${SVG.book}<b>Noch keine Einträge</b>Geprüfte Produkte und bewertete Lebensmittel oder Rezepte landen hier.<br><button type="button" class="btn btn-secondary" data-go="check">Erstes Produkt prüfen</button></div>`; return; }
+  const derivedMap = Object.fromEntries(analysisEntries().filter(x => x.derived).map(x => [x.id, x.reaction]));
+  const mineE = myEntries().filter(x => x.src === "symptom" || isEaten(x));
+  if (!mineE.length){ el.innerHTML = `<div class="card empty">${SVG.book}<b>Noch keine Einträge</b>Was du gegessen hast, landet hier – tippe dafür im Ergebnis auf „Ja, gegessen“ oder bewerte es.<br><button type="button" class="btn btn-secondary" data-go="check">Erstes Produkt prüfen</button></div>`; return; }
   let out = "", lastDay = "";
   for (const x of mineE){
     const day = dayLabel(x.ts);
     if (day !== lastDay){ out += (lastDay ? "</ul>" : "") + `<div class="day">${esc(day)}</div><ul class="list">`; lastDay = day; }
     if (x.src === "symptom"){ out += symptomRowHtml(x); continue; }
     const ev = evaluate(x.raw, P());
-    const rx = x.reaction ? `<span class="rx ${x.reaction}">${REACT[x.reaction]}</span>` : `<span class="rx none">Noch nicht bewertet</span>`;
-    out += `<li><button type="button" class="row-btn hist" data-id="${x.id}">${st(ev.total)}<span class="sr-only">${LABEL[ev.total]}:</span><span class="txt"><b class="ell">${esc(x.name)}</b><small>${fmtTime(x.ts)} · ${SRC[x.src]||""} · ${rx}</small></span>${SVG.chev}</button></li>`;
+    const dr = derivedMap[x.id];
+    const rx = x.reaction ? `<span class="rx ${x.reaction}">${REACT[x.reaction]}</span>` : dr ? `<span class="rx ${dr} derived">${REACT[dr]} (aus Beschwerden)</span>` : `<span class="rx none">Noch nicht bewertet</span>`;
+    out += `<li><button type="button" class="row-btn hist" data-id="${x.id}">${st(ev.total)}<span class="sr-only">${LABEL[ev.total]}:</span><span class="txt"><b class="ell">${esc(x.name)}</b><small>${fmtTime(x.eatenAt || x.ts)} · ${SRC[x.src]||""} · ${rx}</small></span>${SVG.chev}</button></li>`;
   }
   el.innerHTML = `<div class="card flush">${out}</ul></div>`;
 }
@@ -873,7 +896,7 @@ $("#onb").addEventListener("click", e => {
   else if (a === "back"){ onbStep = 2; renderOnb(); }
   else if (a === "finish"){
     FEATURES.forEach(f => settings.features[f.k] = onbFeat.has(f.k));
-    settings.newHint = false; saveSettings(); applyFeatures();
+    settings.newHint = false; saveSettings();
     closeOnb(); goView("check"); refreshAll();
     toast("Fertig – scanne dein erstes Produkt");
     $("#scanBtn").focus({preventScroll:true});
@@ -882,9 +905,12 @@ $("#onb").addEventListener("click", e => {
 $("#onbAgain").addEventListener("click", () => showOnb(true));
 
 /* ---------- Navigation ---------- */
-const TITLES = {check:"Prüfen", foods:"Lebensmittel", recipes:"Rezepte", diary:"Tagebuch", prof:"Profil"};
+const TITLES = {check:"Prüfen", eat:"Essen", diary:"Tagebuch", sos:"Notfall", prof:"Ich"};
 function goView(v){
+  if (v === "foods" || v === "recipes"){ eatSection = v; v = "eat"; }
   if (!TITLES[v]) return;
+  if (v === "eat") renderEat();
+  if (v === "sos") renderSos();
   $$(".tabbar button").forEach(x => { if (x.dataset.v === v) x.setAttribute("aria-current", "page"); else x.removeAttribute("aria-current"); });
   $$(".view").forEach(s => s.classList.toggle("on", s.id === "v-" + v));
   $("#viewTitle").textContent = TITLES[v];

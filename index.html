@@ -445,6 +445,25 @@ details.disc[open]>summary .chev{transform:rotate(90deg)}
   #printArea th,#printArea td{border:1px solid #bbb;padding:3pt 5pt;text-align:left;vertical-align:top}
   #printArea .small{font-size:9pt;color:#444}
 }
+
+.eat-seg{margin-bottom:var(--s3)}
+.tab-dot{position:absolute;top:7px;left:calc(50% + 8px);width:9px;height:9px;border-radius:50%;background:var(--bad);border:2px solid var(--surface)}
+.sos-tab svg{color:var(--bad)}
+.sos-call{display:flex;gap:var(--s2)}
+.sos-call .btn{flex:1}
+.sos-call .btn-danger{background:var(--bad);color:#fff;border-color:var(--bad)}
+.sos-who{display:flex;flex-direction:column;gap:2px}
+.sos-who b{font-size:var(--fs-lg,18px)}
+.blocked{color:var(--ink-2);font-size:var(--fs-sm,13px)}
+.eat-mark{display:flex;gap:var(--s2);align-items:center;flex-wrap:wrap;margin-bottom:var(--s2)}
+.derived{font-style:italic}
+.fav-meta{font-size:12px;color:var(--ink-2)}
+.dlg{background:var(--surface-2,var(--bg));border:1px solid var(--line);border-radius:var(--r-md,12px);padding:var(--s3);margin:var(--s3) 0}
+.dlg label{display:flex;gap:var(--s2);align-items:flex-start;margin:var(--s2) 0;font-size:var(--fs-sm,14px)}
+.dlg input[type=checkbox]{width:20px;height:20px;flex:none;margin-top:1px;accent-color:var(--brand)}
+.acard h4{margin:var(--s3) 0 var(--s1);font-size:17px;text-transform:none}
+.who-tag{font-size:var(--fs-sm,13px);font-weight:600;opacity:.8;margin-left:4px}
+.acard .who{font-size:15px;color:#333;margin-bottom:var(--s2)}
 </style>
 </head>
 <body>
@@ -456,7 +475,6 @@ details.disc[open]>summary .chev{transform:rotate(90deg)}
 <main>
 <!-- PRÜFEN -->
 <section class="view on" id="v-check" aria-labelledby="viewTitle">
-  <div id="checkTop" hidden></div>
   <div class="card hero">
     <p class="lead">Scanne den Barcode oder suche das Produkt. Wir prüfen die Zutaten für dein Profil.</p>
     <button class="btn btn-primary btn-lg btn-block" id="scanBtn" type="button">
@@ -485,7 +503,6 @@ details.disc[open]>summary .chev{transform:rotate(90deg)}
     </button>
   </div>
 
-  <div id="quickTools"></div>
   <h2 class="section-title" id="altTitle">Kein Barcode oder nicht gefunden?</h2>
   <div class="card flush">
     <ul class="list" aria-labelledby="altTitle">
@@ -519,8 +536,10 @@ details.disc[open]>summary .chev{transform:rotate(90deg)}
   <div id="recent"></div>
 </section>
 
-<!-- LEBENSMITTEL -->
-<section class="view" id="v-foods" aria-labelledby="viewTitle">
+<!-- ESSEN: Lebensmittel, Rezepte, Favoriten, Einkaufsliste -->
+<section class="view" id="v-eat" aria-labelledby="viewTitle">
+  <div class="seg eat-seg" id="eatSeg" role="tablist" aria-label="Bereich wählen"></div>
+  <div class="eat-panel" id="eat-foods">
   <div class="tools">
     <div class="field">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
@@ -531,28 +550,34 @@ details.disc[open]>summary .chev{transform:rotate(90deg)}
   </div>
   <div id="foodHint"></div>
   <div class="card flush"><ul class="list" id="foodList"></ul></div>
-</section>
-
-<!-- REZEPTE -->
-<section class="view" id="v-recipes" aria-labelledby="viewTitle">
+</div>
+  <div class="eat-panel" id="eat-recipes" hidden>
   <div class="chipbar" id="meals" role="group" aria-label="Mahlzeit wählen"></div>
   <label class="toggle-row card" style="margin-top:var(--s2);padding:var(--s2) var(--s4)">
     <span>Auch Rezepte mit „Vorsicht“ zeigen</span>
     <span class="sw"><input type="checkbox" id="showWarn" role="switch"><span></span></span>
   </label>
   <div id="recipeList"></div>
+</div>
+  <div class="eat-panel" id="eat-fav" hidden></div>
+  <div class="eat-panel" id="eat-shop" hidden></div>
 </section>
 
 <!-- TAGEBUCH -->
 <section class="view" id="v-diary" aria-labelledby="viewTitle">
+  <div id="progTop"></div>
   <div id="analysisTools"></div>
   <div class="card" id="analysis"></div>
   <h2 class="section-title">Einträge</h2>
   <div id="histList"></div>
 </section>
 
-<!-- PROFIL -->
+<!-- NOTFALL / ALLERGIEKARTE -->
+<section class="view" id="v-sos" aria-labelledby="viewTitle"><div id="sosBody"></div></section>
+
+<!-- ICH -->
 <section class="view" id="v-prof" aria-labelledby="viewTitle">
+  <div id="ichTop"></div>
   <p class="lead" style="margin:0 var(--s1)">Schalte ein, was du nicht verträgst. Bewertet und angezeigt wird nur, was aktiv ist.</p>
   <section class="card" id="peopleCard" hidden></section>
   <div id="profCats"></div>
@@ -576,11 +601,11 @@ details.disc[open]>summary .chev{transform:rotate(90deg)}
 </main>
 
 <nav class="tabbar" aria-label="Hauptnavigation"><div class="in">
-  <button type="button" aria-current="page" data-v="check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7V5a1 1 0 0 1 1-1h2M17 4h2a1 1 0 0 1 1 1v2M20 17v2a1 1 0 0 1-1 1h-2M7 20H5a1 1 0 0 1-1-1v-2"/><path d="M7 8v8M10 8v8M13 8v8M16 8v8"/></svg>Prüfen</button>
-  <button type="button" data-v="foods"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 7c-1.5-2-5-2.2-6.5.3C4 10 5 15 7.5 18c1.4 1.7 2.8 2 4.5 1 1.7 1 3.1.7 4.5-1C19 15 20 10 18.5 7.3 17 4.8 13.5 5 12 7z"/><path d="M12 7c0-2 1-3.5 3-4"/></svg>Lebensmittel</button>
-  <button type="button" data-v="recipes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 13h16a8 8 0 0 1-16 0z"/><path d="M9 9c0-2 2-2 2-4M13 9c0-2 2-2 2-4"/></svg>Rezepte</button>
-  <button type="button" data-v="diary"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h3"/></svg>Tagebuch</button>
-  <button type="button" data-v="prof"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>Profil</button>
+  <button type="button" aria-current="page" data-v="check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7V5a1 1 0 0 1 1-1h2M17 4h2a1 1 0 0 1 1 1v2M20 17v2a1 1 0 0 1-1 1h-2M7 20H5a1 1 0 0 1-1-1v-2"/><path d="M7 8v8M10 8v8M13 8v8M16 8v8"/></svg><span class="tl">Prüfen</span></button>
+  <button type="button" data-v="eat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 13h16a8 8 0 0 1-16 0z"/><path d="M9 9c0-2 2-2 2-4M13 9c0-2 2-2 2-4"/></svg><span class="tl" id="tlEat">Essen</span></button>
+  <button type="button" data-v="diary"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h3"/></svg><span class="tl">Tagebuch</span></button>
+  <button type="button" data-v="sos" class="sos-tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3c-3.5 3-7 4-8 4 0 7 3 12 8 14 5-2 8-7 8-14-1 0-4.5-1-8-4z"/><path d="M12 9v6M9 12h6"/></svg><span class="tl" id="tlSos">Notfall</span><i class="tab-dot" id="dotSos" hidden></i></button>
+  <button type="button" data-v="prof"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg><span class="tl">Ich</span><i class="tab-dot" id="dotMe" hidden></i></button>
 </div></nav>
 
 <div class="sheet" id="sheet" hidden>
@@ -595,7 +620,7 @@ details.disc[open]>summary .chev{transform:rotate(90deg)}
 
 <script>
 /* Auto-Update: bei jedem Öffnen prüfen, ob es eine neuere Version gibt, und dann neu laden */
-const APP_VERSION = 11;
+const APP_VERSION = 12;
 (function(){
   document.getElementById("ver").textContent = "Version " + APP_VERSION;
   let checking = false;
@@ -619,10 +644,10 @@ const APP_VERSION = 11;
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") checkUpdate(); });
 })();
 </script>
-<script src="config.js?v=11"></script>
-<script src="data.js?v=11"></script>
-<script src="engine.js?v=11"></script>
-<script src="app.js?v=11"></script>
-<script src="features.js?v=11"></script>
+<script src="config.js?v=12"></script>
+<script src="data.js?v=12"></script>
+<script src="engine.js?v=12"></script>
+<script src="app.js?v=12"></script>
+<script src="features.js?v=12"></script>
 </body>
 </html>

@@ -284,6 +284,7 @@ const RULES = [
   /* --- Histamin --- */
   {re:/hefeextrakt|hefe-extrakt|yeast extract|speisewuerze|(^|[^a-z])wuerze([^a-z]|$)/, h:2, why:"Hefeextrakt/Würze – histaminreich"},
   {re:/soja ?sauce|sojasosse|soja-sosse|shoyu|tamari|soy sauce/, h:2, why:"Sojasauce – fermentiert"},
+  {re:/soja ?sauce|sojasosse|soja-sosse|shoyu|soy sauce/, g:2, why:"Sojasauce – meist mit Weizen gebraut (Tamari ist oft glutenfrei)"},
   {re:/tomat/, h:2, why:"Tomate – Histaminliberator"},
   {re:/spinat|spinach/, h:2, why:"Spinat – histaminreich"},
   {re:/aubergine|eggplant/, h:2, why:"Aubergine – histaminreich"},

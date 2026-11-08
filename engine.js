@@ -171,10 +171,11 @@ function analyze(entries, profile){
   const rated = entries.filter(e => e.reaction === "good" || e.reaction === "bad");
   const unsure = entries.filter(e => e.reaction === "unsure").length;
   const out = {n: rated.length, unsure, bad: rated.filter(e => e.reaction === "bad").length, cats:{}, suspects:[], safe:[]};
-  const evs = rated.map(e => ({e, ev: evaluate(e.raw, profile), bad: e.reaction === "bad" ? 1 : 0}));
+  /* w = Gewicht eines Eintrags (aus Beschwerden abgeleitete Bewertungen zählen weniger) */
+  const evs = rated.map(e => ({e, ev: evaluate(e.raw, profile), bad: e.reaction === "bad" ? 1 : 0, w: e.w ?? 1}));
   for (const c of KEYS){
     let wE = 0, bE = 0, wU = 0, bU = 0;
-    for (const {ev, bad} of evs){ const x = ev.expo[c]; wE += x; bE += x * bad; wU += 1 - x; bU += (1 - x) * bad; }
+    for (const {ev, bad, w} of evs){ const x = ev.expo[c] * w, y = (1 - ev.expo[c]) * w; wE += x; bE += x * bad; wU += y; bU += y * bad; }
     const enough = rated.length >= 5 && wE >= 2 && wU >= 1;
     const rE = wE ? bE / wE : 0, rU = wU ? bU / wU : 0, diff = rE - rU;
     let verdict = "data";
