@@ -816,6 +816,7 @@ function renderShell(){
   if (cur === "v-eat") renderEat();
   const mi = $("#menuItem"); if (mi) mi.hidden = !F("menu");
   const open = openRatings().length, nd = $("#numDiary"); if (nd){ nd.hidden = !open || !F("diary"); nd.textContent = open; }
+  renderThemeCard();
   renderDataCard();
   /* Hinweise als Punkte am Tab statt Karten auf „Prüfen“ */
   $("#dotSos").hidden = !penWarnings().length;
@@ -938,6 +939,29 @@ $("#menuPhoto").addEventListener("change", async ev => {
   inn.onclick = e2 => { if (e2.target.closest("[data-menu-card]")) openCardSheet(); };
 });
 
+/* ================= Darstellung (hell/dunkel) ================= */
+const THEMES = {auto:"Automatisch", light:"Hell", dark:"Dunkel"};
+function applyTheme(){
+  const t = settings.theme === "light" || settings.theme === "dark" ? settings.theme : "auto";
+  const root = document.documentElement;
+  if (t === "auto") delete root.dataset.theme; else root.dataset.theme = t;
+  document.querySelectorAll('meta[name="theme-color"]').forEach((m, i) => {
+    m.content = t === "auto" ? (i === 0 ? "#f4f1ea" : "#161814") : (t === "dark" ? "#161814" : "#f4f1ea");
+  });
+}
+function renderThemeCard(){
+  const el = $("#themeCard"); if (!el) return;
+  const cur = THEMES[settings.theme] ? settings.theme : "auto";
+  el.innerHTML = `<h2 class="h2">Darstellung</h2>
+    <p class="hint" style="margin:2px 0 var(--s3)">${cur === "auto" ? "Folgt der Einstellung deines iPhones." : "Gilt nur für diese App."}</p>
+    <div class="seg" role="radiogroup" aria-label="Darstellung">${Object.entries(THEMES).map(([k, v]) =>
+      `<button type="button" role="radio" aria-checked="${cur === k}" data-theme-set="${k}">${v}</button>`).join("")}</div>`;
+}
+document.addEventListener("click", ev => {
+  const b = ev.target.closest("[data-theme-set]"); if (!b) return;
+  settings.theme = b.dataset.themeSet; saveSettings(); applyTheme(); renderThemeCard();
+});
+
 /* ================= Datensicherung ================= */
 function renderDataCard(){
   const el = $("#dataCard"); if (!el) return;
@@ -980,6 +1004,6 @@ if ("serviceWorker" in navigator && location.protocol === "https:"){
 }
 
 /* ================= Start ================= */
-load(); loadPeople(); loadSettings(); wireLists();
+load(); loadPeople(); loadSettings(); applyTheme(); wireLists();
 renderCats(); renderMeals(); refreshAll();
 if (!hasStoredProfile && !history.length) showOnb(false);

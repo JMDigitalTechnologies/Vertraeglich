@@ -9,6 +9,7 @@
 <meta name="color-scheme" content="light dark">
 <meta name="theme-color" content="#f4f1ea" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#161814" media="(prefers-color-scheme: dark)">
+<script>try{var t=(JSON.parse(localStorage.getItem("vt_settings"))||{}).theme;if(t==="light"||t==="dark"){document.documentElement.dataset.theme=t;document.querySelectorAll('meta[name="theme-color"]').forEach(function(m){m.content=t==="dark"?"#161814":"#f4f1ea"})}}catch(e){}</script>
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-180.png">
@@ -68,7 +69,7 @@
   --ease:cubic-bezier(.2,.8,.2,1);
 }
 @media (prefers-color-scheme: dark){
-  :root{
+  :root:not([data-theme="light"]){
     --bg:#161814; --surface:#20231d; --surface-2:#2a2e26; --surface-3:#353a30;
     --ink:#eceee4; --ink-2:#c3c6b8; --ink-3:#a3a698;
     --line:#30342b; --line-strong:#6f7466;
@@ -93,6 +94,32 @@
     --shadow-2:0 10px 32px rgba(0,0,0,.5);
   }
 }
+:root[data-theme="dark"]{
+  --bg:#161814; --surface:#20231d; --surface-2:#2a2e26; --surface-3:#353a30;
+  --ink:#eceee4; --ink-2:#c3c6b8; --ink-3:#a3a698;
+  --line:#30342b; --line-strong:#6f7466;
+  --brand:#a9bf9b; --brand-2:#8ea67f; --on-brand:#1a2216; --brand-soft:#2b3527; --brand-ink:#bfd2b2;
+  --accent:#a9bf9b; --on-accent:#1a2216; --accent-soft:#262d22; --accent-ink:#bfd2b2;
+  --hero-1:#20231d; --hero-2:#20231d; --on-hero:#eceee4; --on-hero-2:#c3c6b8;
+  --hero-line:#30342b; --hero-deco:transparent;
+  --hero-field:#20231d; --hero-cta-ink:#bfd2b2; --hero-field-ink:#eceee4; --hero-field-ico:#a3a698;
+  --hero-shadow:none;
+  --glow:transparent;
+  --ok:#6cc093;   --on-ok:#082014;   --ok-soft:#17301f;   --ok-ink:#8fd4ae;
+  --warn:#e6b84a; --on-warn:#231903; --warn-soft:#362b14; --warn-ink:#efcb78;
+  --bad:#e88577;  --on-bad:#2b0a06;  --bad-soft:#3b1f1b;  --bad-ink:#f0a69b;
+  --unk:#a3a698;  --on-unk:#161814;
+  /* dunkel: große Flächen gedämpfter/tiefer statt greller Pastelltöne */
+  --v-ok:#2f7a52;   --on-v-ok:#ffffff;
+  --v-warn:#cf9c32; --on-v-warn:#1f1503;
+  --v-bad:#a8433a;  --on-v-bad:#ffffff;
+  --focus:#bfd2b2;
+  --scrim:rgba(0,0,0,.6);
+  --shadow-1:none;
+  --shadow-2:0 10px 32px rgba(0,0,0,.5);
+}
+:root[data-theme="light"]{color-scheme:light}
+:root[data-theme="dark"]{color-scheme:dark}
 
 /* =========================================================
    Basis
@@ -639,6 +666,7 @@ details.disc[open]>summary .chev{transform:rotate(90deg)}
   <section class="card" id="peopleCard" hidden></section>
   <div id="profCats"></div>
   <section class="card" id="featCard"></section>
+  <section class="card" id="themeCard"></section>
   <section class="card" id="dataCard"></section>
   <div class="card">
     <h2 class="h2">Meine Zutaten</h2>
@@ -680,7 +708,7 @@ details.disc[open]>summary .chev{transform:rotate(90deg)}
 
 <script>
 /* Auto-Update: bei jedem Öffnen prüfen, ob es eine neuere Version gibt, und dann neu laden */
-const APP_VERSION = 18;
+const APP_VERSION = 19;
 (function(){
   document.getElementById("ver").textContent = "Version " + APP_VERSION;
   let checking = false;
@@ -704,10 +732,10 @@ const APP_VERSION = 18;
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") checkUpdate(); });
 })();
 </script>
-<script src="config.js?v=18"></script>
-<script src="data.js?v=18"></script>
-<script src="engine.js?v=18"></script>
-<script src="app.js?v=18"></script>
-<script src="features.js?v=18"></script>
+<script src="config.js?v=19"></script>
+<script src="data.js?v=19"></script>
+<script src="engine.js?v=19"></script>
+<script src="app.js?v=19"></script>
+<script src="features.js?v=19"></script>
 </body>
 </html>
