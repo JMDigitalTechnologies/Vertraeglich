@@ -23,3 +23,8 @@ Der Code ist so aufgebaut, dass er sich mit [Capacitor](https://capacitorjs.com)
 - Plus-Funktionen könnten über `APP_CONFIG.features[k].plus` + In-App-Kauf freigeschaltet werden
 
 Vor einer Veröffentlichung nötig: Impressum, Datenschutzerklärung (`APP_CONFIG.links`), Prüfung der Medizinprodukte-Einordnung, Namensnennung Open Food Facts (ODbL).
+
+## Qualität
+- `node tests/rules.test.js` – Regeltests (läuft auch automatisch per GitHub Actions bei jedem Push, `.github/workflows/tests.yml`)
+- `node tools/pruefliste.js` – erzeugt `docs/PRUEFLISTE.md` zur fachlichen Prüfung
+- `rechtliches/` – Vorlagen für Impressum und Datenschutz (ausfüllen, prüfen lassen, in `config.js` unter `links` eintragen)

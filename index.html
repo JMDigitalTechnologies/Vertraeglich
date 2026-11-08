@@ -7,8 +7,8 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Verträglich">
 <meta name="color-scheme" content="light dark">
-<meta name="theme-color" content="#f4f5f2" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#0f1412" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#faf5ec" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#12110e" media="(prefers-color-scheme: dark)">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-180.png">
@@ -20,18 +20,20 @@
    ========================================================= */
 :root{
   /* Farben – hell */
-  --bg:#f4f5f2; --surface:#ffffff; --surface-2:#eef1ed; --surface-3:#e3e8e3;
-  --ink:#17201b; --ink-2:#56615b; --ink-3:#6b756f;
-  --line:#e1e5e0; --line-strong:#848d87;
-  --brand:#1d6b50; --on-brand:#ffffff; --brand-soft:#e0eee7; --brand-ink:#175a43;
-  --ok:#1f7a4d;   --on-ok:#ffffff;   --ok-soft:#e1f1e7;   --ok-ink:#17643f;
-  --warn:#e5a33a; --on-warn:#2b1d00; --warn-soft:#fbeed6; --warn-ink:#7f4c00;
-  --bad:#c23b30;  --on-bad:#ffffff;  --bad-soft:#fbe4e1;  --bad-ink:#a3271e;
-  --unk:#6b756f;  --on-unk:#ffffff;
-  --focus:#1d6b50;
-  --scrim:rgba(10,20,15,.45);
-  --shadow-1:0 1px 2px rgba(20,40,30,.06), 0 1px 1px rgba(20,40,30,.04);
-  --shadow-2:0 8px 28px rgba(20,40,30,.14);
+  /* Küchen-Palette: Kräutergrün, Paprika, Safran auf warmem Cremeweiß */
+  --bg:#faf5ec; --surface:#ffffff; --surface-2:#f4ecdf; --surface-3:#eadfcd;
+  --ink:#191712; --ink-2:#4f493f; --ink-3:#6a6357;
+  --line:#e6dccb; --line-strong:#8a8072;
+  --brand:#16603f; --brand-2:#2f8a57; --on-brand:#ffffff; --brand-soft:#dcefe2; --brand-ink:#0f4e32;
+  --accent:#e2552b; --accent-soft:#fde4da; --saffron:#f2b233; --berry:#8e2b52;
+  --ok:#1b7a47;   --on-ok:#ffffff;   --ok-soft:#ddf2e4;   --ok-ink:#0f5c33;
+  --warn:#f0a619; --on-warn:#2b1b00; --warn-soft:#fff0cf; --warn-ink:#6e4300;
+  --bad:#d23a22;  --on-bad:#ffffff;  --bad-soft:#fde2db;  --bad-ink:#9b2210;
+  --unk:#6a6357;  --on-unk:#ffffff;
+  --focus:#16603f;
+  --scrim:rgba(25,20,10,.5);
+  --shadow-1:0 1px 2px rgba(60,40,10,.06), 0 2px 8px rgba(60,40,10,.05);
+  --shadow-2:0 10px 32px rgba(60,40,10,.18);
   /* Typografie (Systemschrift) */
   --font:-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --fs-xs:.75rem;   /* 12 */
@@ -53,10 +55,11 @@
 }
 @media (prefers-color-scheme: dark){
   :root{
-    --bg:#0f1412; --surface:#1a201d; --surface-2:#232a27; --surface-3:#2d3531;
-    --ink:#eef2ef; --ink-2:#a9b3ad; --ink-3:#95a09a;
-    --line:#2c3430; --line-strong:#6f7a74;
-    --brand:#5cc69c; --on-brand:#04261a; --brand-soft:#173628; --brand-ink:#7fd8b2;
+    --bg:#12110e; --surface:#1d1b17; --surface-2:#27241f; --surface-3:#322e27;
+    --ink:#f6f1e8; --ink-2:#c3b9aa; --ink-3:#a39a8c;
+    --line:#35302a; --line-strong:#7d7466;
+    --brand:#5fcf95; --brand-2:#3fae78; --on-brand:#06261a; --brand-soft:#173a29; --brand-ink:#8ee3b5;
+    --accent:#ff7a4f; --accent-soft:#3e2116; --saffron:#f5c252; --berry:#e07aa3;
     --ok:#4cc28a;   --on-ok:#03241a;   --ok-soft:#173427;   --ok-ink:#7fd9ac;
     --warn:#f0b04a; --on-warn:#2b1d00; --warn-soft:#3a2c12; --warn-ink:#f5c674;
     --bad:#ff7b70;  --on-bad:#330905;  --bad-soft:#3e1d1a;  --bad-ink:#ff9d94;
@@ -447,6 +450,16 @@ details.disc[open]>summary .chev{transform:rotate(90deg)}
 }
 
 .eat-seg{margin-bottom:var(--s3)}
+.cam-tools{display:flex;gap:var(--s2);align-items:center;margin-top:var(--s2)}
+.cam-tools input[type=range]{flex:1;accent-color:var(--brand)}
+.menu-line{display:flex;gap:var(--s2);align-items:flex-start;padding:var(--s2) 0;border-top:1px solid var(--line)}
+.menu-line:first-child{border-top:0}
+.menu-line .txt{flex:1}
+.tab-num{position:absolute;top:4px;left:calc(50% + 6px);min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--brand);color:#fff;font-size:11px;font-weight:700;line-height:18px;text-align:center}
+.rec-hd{display:flex;align-items:center;justify-content:space-between;margin:var(--s4) var(--s1) var(--s2)}
+.recipe s{color:var(--ink-2)}
+.subs{margin-top:var(--s2)}
+.subs li{margin:4px 0}
 .tab-dot{position:absolute;top:7px;left:calc(50% + 8px);width:9px;height:9px;border-radius:50%;background:var(--bad);border:2px solid var(--surface)}
 .sos-tab svg{color:var(--bad)}
 .sos-call{display:flex;gap:var(--s2)}
@@ -464,6 +477,64 @@ details.disc[open]>summary .chev{transform:rotate(90deg)}
 .acard h4{margin:var(--s3) 0 var(--s1);font-size:17px;text-transform:none}
 .who-tag{font-size:var(--fs-sm,13px);font-weight:600;opacity:.8;margin-left:4px}
 .acard .who{font-size:15px;color:#333;margin-bottom:var(--s2)}
+
+/* ---------- Visuelles Upgrade: Küchen-Look ---------- */
+body{background:var(--bg) radial-gradient(1200px 500px at 110% -10%, color-mix(in srgb, var(--saffron) 14%, transparent), transparent 60%) no-repeat}
+.top h1{font-weight:800;letter-spacing:-.03em}
+.card{border-radius:20px;border-color:var(--line);box-shadow:var(--shadow-1)}
+.hero{position:relative;overflow:hidden;border:0;color:#fff;background:
+  radial-gradient(160px 160px at 92% 8%, rgba(242,178,51,.35), transparent 70%),
+  radial-gradient(220px 140px at 0% 110%, rgba(226,85,43,.35), transparent 70%),
+  linear-gradient(140deg, var(--brand) 0%, var(--brand-2) 100%);
+  box-shadow:0 12px 30px color-mix(in srgb, var(--brand) 35%, transparent)}
+.hero::after{content:"";position:absolute;right:-28px;bottom:-34px;width:150px;height:150px;border-radius:50%;border:18px solid rgba(255,255,255,.08);pointer-events:none}
+.hero .lead{color:rgba(255,255,255,.92);font-weight:500}
+.hero #scanBtn{background:#fff;color:var(--brand-ink);box-shadow:0 6px 18px rgba(0,0,0,.18);font-weight:750}
+.hero #scanBtn svg{color:var(--accent)}
+.hero .or{color:rgba(255,255,255,.8)}
+.hero .or::before,.hero .or::after{background:rgba(255,255,255,.3)}
+.hero .input{background:rgba(255,255,255,.96);border-color:transparent;color:#191712}
+.hero .field svg{color:#6a6357}
+.hero #eanBtn{background:var(--saffron);color:#2b1b00;border:0;font-weight:750}
+.hero .btn-link{color:#fff;text-decoration:underline;text-underline-offset:3px}
+.hero .feedback{color:var(--ink)}
+.section-title{color:var(--ink-2);font-weight:750;letter-spacing:.06em}
+.row-btn .ico{background:var(--accent-soft);color:var(--accent);border-radius:12px}
+.btn-primary{background:var(--brand);box-shadow:0 4px 12px color-mix(in srgb, var(--brand) 30%, transparent)}
+.btn-secondary{background:var(--brand-soft);color:var(--brand-ink)}
+/* Ergebnis: kräftig und eindeutig */
+.verdict{border-radius:20px;padding:var(--s5) var(--s4)}
+.v0{background:var(--ok);} .v0 .vl,.v0 .vn{color:#fff} .v0 .vi{background:#fff;color:var(--ok)}
+.v1{background:var(--warn);} .v1 .vl,.v1 .vn{color:#2b1b00} .v1 .vi{background:#2b1b00;color:var(--warn)}
+.v2{background:var(--bad);} .v2 .vl,.v2 .vn{color:#fff} .v2 .vi{background:#fff;color:var(--bad)}
+.verdict .vl{font-size:1.6rem;font-weight:800}
+.verdict .who-tag{opacity:.9}
+.chip.lv0{background:var(--ok-soft);color:var(--ok-ink);box-shadow:inset 0 0 0 1.5px color-mix(in srgb, var(--ok) 40%, transparent)}
+.chip.lv1{background:var(--warn-soft);color:var(--warn-ink);box-shadow:inset 0 0 0 1.5px color-mix(in srgb, var(--warn) 55%, transparent)}
+.chip.lv2{background:var(--bad-soft);color:var(--bad-ink);box-shadow:inset 0 0 0 1.5px color-mix(in srgb, var(--bad) 45%, transparent)}
+/* Tab-Leiste: aktive Pille */
+.tabbar button[aria-current="page"]::before{display:none}
+.tabbar button[aria-current="page"] svg{background:var(--brand-soft);border-radius:999px;padding:3px 14px;width:52px;height:30px;box-sizing:border-box}
+.tabbar button[aria-current="page"]{color:var(--brand-ink);font-weight:750}
+.prof-pill{border-color:transparent;background:var(--surface);box-shadow:var(--shadow-1)}
+/* Rezepte & Listen */
+.recipe{border-left:5px solid var(--brand-2)}
+.recipe .recipe-hd h3{font-weight:750}
+.rec-hd .section-title{color:var(--accent)}
+.eat-seg button[aria-pressed="true"],.eat-seg button[aria-selected="true"]{background:var(--brand);color:var(--on-brand)}
+.chipbar button[aria-pressed="true"]{background:var(--brand);color:var(--on-brand);border-color:var(--brand)}
+.prog-card{border-left:5px solid var(--saffron)}
+.open-rate{border-left:5px solid var(--accent)}
+.sos-call .btn-danger{box-shadow:0 8px 20px color-mix(in srgb, var(--bad) 35%, transparent);font-size:1.15rem}
+.acard{border-color:var(--bad)}
+.onb{background:linear-gradient(180deg, var(--bg), var(--surface-2))}
+.onb .logo{box-shadow:0 10px 24px color-mix(in srgb, var(--brand) 35%, transparent);border-radius:24px}
+.pick button[aria-pressed="true"]{background:var(--brand);color:var(--on-brand);border-color:var(--brand)}
+.tag-rec{background:var(--accent-soft);color:var(--accent)}
+@media (prefers-color-scheme: dark){
+  .hero .input{background:rgba(255,255,255,.95)}
+  .v1 .vl,.v1 .vn{color:#1a1100}
+}
 </style>
 </head>
 <body>
@@ -484,6 +555,7 @@ details.disc[open]>summary .chev{transform:rotate(90deg)}
     <div id="scanWrap" hidden>
       <div class="cam"><video id="video" playsinline muted autoplay></video><div class="frame" aria-hidden="true"></div><div class="line" aria-hidden="true"></div></div>
       <div id="scanStatus" class="scan-status" role="status" aria-live="polite"></div>
+      <div class="cam-tools" id="camTools" hidden></div>
       <button class="btn btn-outline btn-block" id="scanStop" type="button">Scannen abbrechen</button>
     </div>
     <div class="or" aria-hidden="true">oder</div>
@@ -509,6 +581,11 @@ details.disc[open]>summary .chev{transform:rotate(90deg)}
       <li><button class="row-btn" id="ocrBtn" type="button">
         <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7V5a1 1 0 0 1 1-1h2M17 4h2a1 1 0 0 1 1 1v2M20 17v2a1 1 0 0 1-1 1h-2M7 20H5a1 1 0 0 1-1-1v-2"/><path d="M8 9h8M8 12h8M8 15h5"/></svg></span>
         <span class="txt"><b>Zutatenliste fotografieren</b><small>Texterkennung direkt auf deinem Gerät</small></span>
+        <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
+      </button></li>
+      <li id="menuItem" hidden><button class="row-btn" id="menuBtn" type="button">
+        <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6M9 16h3"/></svg></span>
+        <span class="txt"><b>Speisekarte fotografieren</b><small>Gerichte mit kritischen Zutaten markieren</small></span>
         <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
       </button></li>
       <li><button class="row-btn" id="manualBtn" type="button" aria-expanded="false" aria-controls="manual">
@@ -552,6 +629,11 @@ details.disc[open]>summary .chev{transform:rotate(90deg)}
   <div class="card flush"><ul class="list" id="foodList"></ul></div>
 </div>
   <div class="eat-panel" id="eat-recipes" hidden>
+  <div class="field" style="margin-bottom:var(--s2)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+    <label for="rq" class="sr-only">Rezepte suchen</label>
+    <input class="input" type="search" id="rq" placeholder="Rezepte suchen, z. B. Reis, Suppe" autocomplete="off" enterkeyhint="search">
+  </div>
   <div class="chipbar" id="meals" role="group" aria-label="Mahlzeit wählen"></div>
   <label class="toggle-row card" style="margin-top:var(--s2);padding:var(--s2) var(--s4)">
     <span>Auch Rezepte mit „Vorsicht“ zeigen</span>
@@ -582,6 +664,7 @@ details.disc[open]>summary .chev{transform:rotate(90deg)}
   <section class="card" id="peopleCard" hidden></section>
   <div id="profCats"></div>
   <section class="card" id="featCard"></section>
+  <section class="card" id="dataCard"></section>
   <div class="card">
     <h2 class="h2">Meine Zutaten</h2>
     <p class="hint" style="margin:4px 0 var(--s2)">Deine Markierungen „vertrage ich“ / „vertrage ich nicht“. Sie gelten für alle Produkte und Rezepte.</p>
@@ -603,7 +686,7 @@ details.disc[open]>summary .chev{transform:rotate(90deg)}
 <nav class="tabbar" aria-label="Hauptnavigation"><div class="in">
   <button type="button" aria-current="page" data-v="check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7V5a1 1 0 0 1 1-1h2M17 4h2a1 1 0 0 1 1 1v2M20 17v2a1 1 0 0 1-1 1h-2M7 20H5a1 1 0 0 1-1-1v-2"/><path d="M7 8v8M10 8v8M13 8v8M16 8v8"/></svg><span class="tl">Prüfen</span></button>
   <button type="button" data-v="eat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 13h16a8 8 0 0 1-16 0z"/><path d="M9 9c0-2 2-2 2-4M13 9c0-2 2-2 2-4"/></svg><span class="tl" id="tlEat">Essen</span></button>
-  <button type="button" data-v="diary"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h3"/></svg><span class="tl">Tagebuch</span></button>
+  <button type="button" data-v="diary"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h3"/></svg><span class="tl">Tagebuch</span><i class="tab-num" id="numDiary" hidden></i></button>
   <button type="button" data-v="sos" class="sos-tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3c-3.5 3-7 4-8 4 0 7 3 12 8 14 5-2 8-7 8-14-1 0-4.5-1-8-4z"/><path d="M12 9v6M9 12h6"/></svg><span class="tl" id="tlSos">Notfall</span><i class="tab-dot" id="dotSos" hidden></i></button>
   <button type="button" data-v="prof"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg><span class="tl">Ich</span><i class="tab-dot" id="dotMe" hidden></i></button>
 </div></nav>
@@ -617,10 +700,12 @@ details.disc[open]>summary .chev{transform:rotate(90deg)}
 <div class="onb" id="onb" role="dialog" aria-modal="true" aria-labelledby="onbTitle" hidden></div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div id="printArea" aria-hidden="true"></div>
+<input id="menuPhoto" type="file" accept="image/*" hidden>
+<input id="backupFile" type="file" accept="application/json,.json" hidden>
 
 <script>
 /* Auto-Update: bei jedem Öffnen prüfen, ob es eine neuere Version gibt, und dann neu laden */
-const APP_VERSION = 13;
+const APP_VERSION = 14;
 (function(){
   document.getElementById("ver").textContent = "Version " + APP_VERSION;
   let checking = false;
@@ -644,10 +729,10 @@ const APP_VERSION = 13;
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") checkUpdate(); });
 })();
 </script>
-<script src="config.js?v=13"></script>
-<script src="data.js?v=13"></script>
-<script src="engine.js?v=13"></script>
-<script src="app.js?v=13"></script>
-<script src="features.js?v=13"></script>
+<script src="config.js?v=14"></script>
+<script src="data.js?v=14"></script>
+<script src="engine.js?v=14"></script>
+<script src="app.js?v=14"></script>
+<script src="features.js?v=14"></script>
 </body>
 </html>

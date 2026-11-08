@@ -45,6 +45,7 @@ const SVG = {
   bowl:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 13h16a8 8 0 0 1-16 0z"/><path d="M9 9c0-2 2-2 2-4M13 9c0-2 2-2 2-4"/></svg>',
   scan:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7V5a1 1 0 0 1 1-1h2M17 4h2a1 1 0 0 1 1 1v2M20 17v2a1 1 0 0 1-1 1h-2M7 20H5a1 1 0 0 1-1-1v-2"/><path d="M7 8v8M10 8v8M13 8v8M16 8v8"/></svg>',
   user:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>',
+  shuffle:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 3h5v5M4 20 21 3M21 16v5h-5M15 15l6 6M4 4l5 5"/></svg>',
   cart:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4h2l2.4 11h10.2L20 8H6.2"/><circle cx="9" cy="19.5" r="1.5"/><circle cx="17" cy="19.5" r="1.5"/></svg>',
   star:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 2.8 5.8 6.2.9-4.5 4.4 1 6.2L12 17.4l-5.5 2.9 1-6.2L3 9.7l6.2-.9z"/></svg>',
   starFill:'<svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 2.8 5.8 6.2.9-4.5 4.4 1 6.2L12 17.4l-5.5 2.9 1-6.2L3 9.7l6.2-.9z"/></svg>',
@@ -109,9 +110,10 @@ function refreshAll(){
 }
 
 /* ---------- Ergebnis-Anzeige ---------- */
+const W = e => e && e.drink ? {past:"getrunken", Past:"Getrunken", what:"Getrunkenes"} : {past:"gegessen", Past:"Gegessen", what:"Gegessenes"};
 function eatenHtml(e){
-  const on = isEaten(e);
-  return `<div class="eat-mark"><button type="button" class="btn btn-sm ${on ? "btn-primary" : "btn-outline"}" data-eat="${e.id}" aria-pressed="${on}">${on ? "✓ Gegessen" + (e.eatenAt ? " · " + fmtTime(e.eatenAt) : "") : "Ja, gegessen"}</button><span class="hint">${on ? "Zählt fürs Tagebuch." : "Nur Gegessenes zählt fürs Tagebuch."}</span></div>`;
+  const on = isEaten(e), w = W(e);
+  return `<div class="eat-mark"><button type="button" class="btn btn-sm ${on ? "btn-primary" : "btn-outline"}" data-eat="${e.id}" aria-pressed="${on}">${on ? "✓ " + w.Past + (e.eatenAt ? " · " + fmtTime(e.eatenAt) : "") : "Ja, " + w.past}</button><span class="hint">${on ? "Zählt fürs Tagebuch." : "Nur " + w.what + " zählt fürs Tagebuch."}</span></div>`;
 }
 function reactHtml(e, attr){
   attr = attr || (k => `data-react="${k}" data-id="${e.id}"`);
@@ -160,7 +162,7 @@ function showResult(e, el){
   ${flagged.length ? `<section class="block"><h3 class="block-title">Auffällige Zutaten <span class="n">(${flagged.length})</span></h3><ul class="list">${flagged.map(ingHtml).join("")}</ul></section>` : ""}
   ${resultExtras(e, ev, "bottom")}
   <section class="block">
-    <h3 class="block-title">Gegessen? Wie hast du es vertragen?</h3>
+    <h3 class="block-title">${W(e).Past}? Wie hast du es vertragen?</h3>
     ${eatenHtml(e)}
     ${reactHtml(e)}
     <p class="hint" style="margin-top:6px">Bewertest du es, landet es automatisch im Tagebuch und hilft der Analyse.</p>
@@ -184,7 +186,7 @@ function handleActions(ev, rerender){
   if (b.dataset.eat){
     const e = history.find(x => x.id === b.dataset.eat); if (!e) return;
     if (isEaten(e)){ e.eaten = false; e.reaction = null; e.eatenAt = null; toast("Aus dem Tagebuch entfernt"); }
-    else { e.eaten = true; e.eatenAt = Date.now(); toast("Im Tagebuch als gegessen gespeichert"); }
+    else { e.eaten = true; e.eatenAt = Date.now(); toast("Im Tagebuch als " + W(e).past + " gespeichert"); }
     saveHistory();
   } else if (b.dataset.react){
     const e = history.find(x => x.id === b.dataset.id); if (!e) return;
@@ -368,6 +370,7 @@ async function startScan(){
   const video = $("#video");
   try{
     stream = await navigator.mediaDevices.getUserMedia({audio:false, video:{facingMode:{ideal:"environment"}, width:{ideal:1280}, height:{ideal:720}}});
+    if (typeof camExtras === "function") setTimeout(() => camExtras(stream), 300);
     video.srcObject = stream;
     await video.play();
   }catch(e){
@@ -404,6 +407,7 @@ async function startScan(){
   tick();
 }
 async function stopScan(){
+  if (typeof camExtrasOff === "function") camExtrasOff();
   scanning = false; clearTimeout(scanTimer);
   if (stream){ stream.getTracks().forEach(t => t.stop()); stream = null; }
   const v = $("#video"); if (v) v.srcObject = null;
@@ -510,7 +514,7 @@ function onHitsClick(e){
 $("#scanInfo").addEventListener("click", onHitsClick);
 $("#manualHits").addEventListener("click", onHitsClick);
 
-const OFF_FIELDS = "product_name,product_name_de,generic_name_de,brands,ingredients_text_de,ingredients_text,allergens_tags,traces_tags,labels_tags";
+const OFF_FIELDS = "product_name,product_name_de,generic_name_de,brands,ingredients_text_de,ingredients_text,allergens_tags,traces_tags,labels_tags,categories_tags";
 function productName(p, code){
   return [p.brands && String(p.brands).split(",")[0].trim(), p.product_name_de || p.product_name || p.generic_name_de].filter(Boolean).join(" – ") || ("Produkt " + code);
 }
@@ -537,7 +541,9 @@ function productToRaw(p, code){
   const trWords = traces.map(t => OFF_ALLERGENS[t]).filter(Boolean).map(c => ALLERGEN_WORD[c]);
   let tr = spuren;
   if (trWords.length) tr = (tr ? tr + " " : "") + "Kann Spuren von " + trWords.join(", ") + " enthalten";
-  return {name, full: !!txt.trim(), raw: {mode:"label", items, spuren: tr, gf, lf}};
+  const cats = p.categories_tags || [];
+  const drink = cats.some(c => /beverages|drinks|getraenke/.test(c)) || /(^|\s)(saft|nektar|limonade|cola|eistee|tee|kaffee|wasser|schorle|smoothie|drink|bier|wein|sekt|milch|kakao|energy)(\s|$)/i.test(norm(name).replace(/[^a-z ]/g, " "));
+  return {name, drink, full: !!txt.trim(), raw: {mode:"label", items, spuren: tr, gf, lf}};
 }
 async function lookup(code, where){
   try{ if (navigator.vibrate) navigator.vibrate(60); }catch(e){}
@@ -548,7 +554,10 @@ async function lookup(code, where){
   try{
     const r = await fetch("https://world.openfoodfacts.org/api/v2/product/" + encodeURIComponent(code) + ".json?lc=de&fields=" + OFF_FIELDS);
     j = await r.json();
-  }catch(e){ show(fbHtml("Keine Verbindung zu Open Food Facts", "Bist du online? Ohne Internet kannst du die Zutatenliste selbst eingeben.", ALT_ACTIONS, SVG.warn), "err"); return; }
+  }catch(e){
+    const old = history.find(h => h.code === code && h.raw);
+    if (old){ show(""); const e2 = addEntry(old.name, old.raw, "barcode", code); e2.drink = old.drink; saveHistory(); openEntrySheet(e2, {fromCheck:true, note:"Offline – du siehst den zuletzt gespeicherten Stand vom " + new Date(old.ts).toLocaleDateString("de-DE") + "."}); return e2; }
+    show(fbHtml("Keine Verbindung zu Open Food Facts", "Bist du online? Ohne Internet kannst du die Zutatenliste selbst eingeben.", ALT_ACTIONS, SVG.warn), "err"); return; }
   if (!j || j.status !== 1 || !j.product){
     show(fbHtml("Produkt " + esc(code) + " ist noch nicht in Open Food Facts", "Fotografiere die Zutatenliste oder gib sie selbst ein. " +
       '<a href="https://world.openfoodfacts.org/cgi/product.pl?type=add&code=' + esc(code) + '" target="_blank" rel="noopener">Produkt bei Open Food Facts eintragen</a>', ALT_ACTIONS), "warn");
@@ -558,13 +567,15 @@ async function lookup(code, where){
   const pr = productToRaw(p, code);
   if (!pr){
     const nm = productName(p, code);
-    show(fbHtml(esc(nm) + " – ohne Zutatenliste", "Das Produkt ist bekannt, aber die Zutaten fehlen. Fotografiere die Zutatenliste, um es zu prüfen.", ALT_ACTIONS), "warn");
+    show(fbHtml(esc(nm) + " – ohne Zutatenliste", "Das Produkt ist bekannt, aber die Zutaten fehlen. Fotografiere die Zutatenliste, um es zu prüfen. " +
+      '<a href="https://world.openfoodfacts.org/cgi/product.pl?type=edit&code=' + esc(code) + '" target="_blank" rel="noopener">Zutaten bei Open Food Facts ergänzen</a> – das hilft allen.', ALT_ACTIONS), "warn");
     return;
   }
   const name = pr.name, txt = pr.full ? "x" : "";
   show("");
   const note = txt.trim() ? "" : "Nur die Allergenkennzeichnung ist hinterlegt, keine vollständige Zutatenliste – Histamin, Fructose & Co. sind deshalb nicht bewertbar.";
   const e = addEntry(name, pr.raw, "barcode", code);
+  if (pr.drink){ e.drink = true; saveHistory(); }
   renderDiary(); renderRecent();
   openEntrySheet(e, {fromCheck:true, note});
   return e;
@@ -615,7 +626,7 @@ function renderFoods(){
   const list = FOODS.map((f, idx) => ({f, idx, lv: foodLevels(f)}))
     .filter(({f}) => (foodCat === "Alle" || f.k === foodCat) && (!q || norm(f.n).includes(q) || norm(f.note).includes(q)));
   const worst = x => (profile.mine[ingKey(x.f.n)] === "bad") ? 3 : cats.length ? Math.max(...cats.map(c => x.lv[c])) : 0;
-  const rank = x => !q ? 0 : norm(x.f.n).startsWith(q) ? 0 : norm(x.f.n).split(/[^a-z]+/).some(w => w.startsWith(q)) ? 1 : 2;
+  const rank = x => !q ? 0 : norm(x.f.n) === q ? -1 : norm(x.f.n).startsWith(q) ? 0 : norm(x.f.n).split(/[^a-z]+/).some(w => w.startsWith(q)) ? 1 : 2;
   list.sort((a,b) => rank(a) - rank(b) || worst(a) - worst(b) || a.f.n.localeCompare(b.f.n, "de"));
   $("#foodHint").innerHTML = cats.length
     ? `<div class="legend" aria-hidden="true"><span>${st(0,"sm")}verträglich</span><span>${st(1,"sm")}Vorsicht</span><span>${st(2,"sm")}meiden</span></div>`
@@ -646,14 +657,15 @@ function openFoodSheet(f){
   ${act.length ? `<div class="chips" style="margin-top:var(--s3)">${sorted.map(c => chip(lv[c], esc(CATS[c]), ": " + LABEL[lv[c]])).join("")}${m === "bad" ? chip(2, "Persönlich", ": Meiden") : ""}</div>` : ""}
   ${rest.length ? `<details class="disc" style="margin-top:var(--s2)"><summary>${SVG.chev}Weitere Kategorien</summary><div class="chips">${rest.map(c => `<span class="chip off">${badge(c, lv[c])}${esc(CATS[c])}: ${LABEL[lv[c]]}</span>`).join("")}</div></details>` : ""}
   <section class="block"><h3 class="block-title">Deine Erfahrung</h3>${mkButtons(key, f.n, m)}</section>
-  <section class="block"><h3 class="block-title">Heute gegessen?</h3><p class="hint" style="margin:-4px 0 var(--s2)">Trag ein, wie du es vertragen hast – das fließt in die Tagebuch-Analyse ein.</p>
+  ${subsHtml(f.n, lv, act)}
+  <section class="block"><h3 class="block-title">Heute ${f.k === "Getränke" ? "getrunken" : "gegessen"}?</h3><p class="hint" style="margin:-4px 0 var(--s2)">Trag ein, wie du es vertragen hast – das fließt in die Tagebuch-Analyse ein.</p>
   ${reactHtml(null, k => `data-fr="${k}"`)}</section>`;
   openSheet(f.n, {type:"food"});
   inn.onclick = ev => {
     const fr = ev.target.closest("[data-fr]");
     if (fr){
       const e = addEntry(f.n, {mode:"food", items:[{n:f.n, x:Object.fromEntries(KEYS.map(c => [c, f[c] || 0])), note:f.note}]}, "food");
-      e.reaction = fr.dataset.fr; e.eaten = true; e.eatenAt = Date.now(); saveHistory(); renderDiary(); closeSheet(); toast("Im Tagebuch gespeichert: " + REACT[e.reaction]); return;
+      e.reaction = fr.dataset.fr; e.eaten = true; e.eatenAt = Date.now(); if (f.k === "Getränke") e.drink = true; saveHistory(); renderDiary(); closeSheet(); toast("Im Tagebuch gespeichert: " + REACT[e.reaction]); return;
     }
     handleActions(ev, () => { openFoodSheet(f); renderFoods(); });
   };
@@ -665,30 +677,65 @@ const recipeEntry = {};
 function renderMeals(){ $("#meals").innerHTML = Object.keys(MEALS).map(k => `<button type="button" aria-pressed="${k===meal}" data-m="${k}">${MEALS[k]}</button>`).join(""); }
 $("#meals").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; meal = b.dataset.m; renderMeals(); renderRecipes(); const n = $(`#meals [data-m="${meal}"]`); if (n) n.focus({preventScroll:true}); });
 $("#showWarn").addEventListener("change", () => renderRecipes());
+let rqT; $("#rq").addEventListener("input", () => { clearTimeout(rqT); rqT = setTimeout(renderRecipes, 150); });
+$("#rq").addEventListener("keydown", e => { if (e.key === "Enter") e.target.blur(); });
+/* Rezepte: Suche, täglich wechselnde Vorschläge, Anpassung per Austausch */
+let recipeShuffle = 0;
+function recipeStatus(r){
+  const ev = evaluate(recipeRaw(r), P());
+  if (ev.total === 0) return {ev, kind:"fit"};
+  const ad = adaptRecipe(r, ev);
+  if (ad) return {ev, kind:"adapt", ad};
+  return {ev, kind: ev.total === 1 ? "warn" : "no"};
+}
+function seededOrder(arr, seed){
+  let h = 2166136261; for (const ch of String(seed)) h = Math.imul(h ^ ch.charCodeAt(0), 16777619);
+  const rnd = () => { h ^= h << 13; h ^= h >>> 17; h ^= h << 5; return ((h >>> 0) % 1e6) / 1e6; };
+  const a = arr.slice(); for (let i = a.length - 1; i > 0; i--){ const j = Math.floor(rnd() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a;
+}
+function recipeCard(x, open){
+  const {r, i, ev, kind, ad} = x;
+  const swapMap = ad ? Object.fromEntries(ad.swaps.map(s => [s.k, s])) : {};
+  const zl = r.z.map((z, k) => { const it = ev.items[k]; const lv = Math.max(0, ...ev.cats.map(c => it.lvl[c])); const sw = swapMap[k];
+    return `<li>${sw ? `<s>${esc(z.replace(/^~\s*/, ""))}</s> → <b>${esc(sw.to)}</b>` : esc(z.replace(/^~\s*/, ""))}${lv && !sw ? `<span class="rflag">${ev.cats.filter(c => it.lvl[c] > 0).map(c => badge(c, it.lvl[c])).join("")}</span>` : ""}</li>`; }).join("");
+  const last = recipeEntry[i] && history.find(h => h.id === recipeEntry[i]);
+  const lv = kind === "fit" ? 0 : kind === "adapt" ? 0 : ev.total;
+  return `<article class="card recipe"><div class="recipe-hd">${st(lv)}<span class="sr-only">${kind === "adapt" ? "passt mit Austausch" : LABEL[lv]}:</span><div style="flex:1;min-width:0"><h3>${esc(r.t)}</h3><p class="meta">${r.m.map(m => MEALS[m]).join(" · ")} · ${r.min} Min.${kind === "adapt" ? ` · <span class="tag-rec">mit Austausch</span>` : ""}</p></div></div>
+    ${kind === "adapt" ? `<p class="reason">Passt, wenn du austauschst: ${esc(ad.swaps.map(s => s.from + " → " + s.to).join(", "))}</p>` : ev.total ? `<p class="reason">${esc(reasonText(ev))}</p>` : ""}
+    <details class="disc" data-i="${i}"${open.has(String(i)) ? " open" : ""}><summary>${SVG.chev}Zutaten &amp; Zubereitung</summary><h4>Zutaten</h4><ul>${zl}</ul><h4>Zubereitung</h4><ol>${r.s.map(s => `<li>${esc(s)}</li>`).join("")}</ol>
+    ${F("lists") ? `<button type="button" class="btn btn-sm btn-outline" data-shop-r="${i}" style="margin-top:var(--s2)">${SVG.cart}Zutaten auf die Einkaufsliste</button>` : ""}
+    <h4>Nachgekocht? Wie hast du es vertragen?</h4>
+    ${reactHtml(last || null, k => `data-rr="${k}" data-ri="${i}"`)}</details></article>`;
+}
 function renderRecipes(){
   const open = new Set([...document.querySelectorAll("#recipeList details[open]")].map(d => d.dataset.i));
   const showWarn = $("#showWarn").checked;
-  const all = RECIPES.map((r, i) => ({r, i, ev: evaluate(recipeRaw(r), P())})).filter(x => meal === "alle" || x.r.m.includes(meal));
-  const shown = all.filter(x => x.ev.total === 0 || (showWarn && x.ev.total === 1)).sort((a,b) => a.ev.total - b.ev.total);
-  const hidden = all.length - shown.length;
-  const html = shown.map(({r, i, ev}) => {
-    const items = ev.items;
-    const zl = r.z.map((z, k) => { const it = items[k]; const lv = Math.max(0, ...ev.cats.map(c => it.lvl[c]));
-      return `<li>${esc(z.replace(/^~\s*/, ""))}${lv ? `<span class="rflag">${ev.cats.filter(c => it.lvl[c] > 0).map(c => badge(c, it.lvl[c])).join("")}</span>` : ""}</li>`; }).join("");
-    const last = recipeEntry[i] && history.find(h => h.id === recipeEntry[i]);
-    return `<article class="card recipe"><div class="recipe-hd">${st(ev.total)}<span class="sr-only">${LABEL[ev.total]}:</span><div style="flex:1;min-width:0"><h3>${esc(r.t)}</h3><p class="meta">${r.m.map(m => MEALS[m]).join(" · ")} · ${r.min} Min.</p></div></div>
-      ${ev.total ? `<p class="reason">${esc(reasonText(ev))}</p>` : ""}
-      <details class="disc" data-i="${i}"${open.has(String(i)) ? " open" : ""}><summary>${SVG.chev}Zutaten &amp; Zubereitung</summary><h4>Zutaten</h4><ul>${zl}</ul><h4>Zubereitung</h4><ol>${r.s.map(s => `<li>${esc(s)}</li>`).join("")}</ol>
-      ${F("lists") ? `<button type="button" class="btn btn-sm btn-outline" data-shop-r="${i}" style="margin-top:var(--s2)">${SVG.cart}Zutaten auf die Einkaufsliste</button>` : ""}
-      <h4>Nachgekocht? Wie hast du es vertragen?</h4>
-      ${reactHtml(last || null, k => `data-rr="${k}" data-ri="${i}"`)}</details></article>`;
-  }).join("");
-  $("#recipeList").innerHTML = (html || `<div class="card empty">${SVG.bowl}<b>Keine passenden Rezepte</b>${hidden ? (showWarn ? "Für diese Mahlzeit passt gerade nichts zu deinem Profil." : "Schalte „Vorsicht“ oben ein oder wähle eine andere Mahlzeit.") : "Wähle eine andere Mahlzeit."}</div>`) +
+  const q = norm(($("#rq") || {}).value || "").trim();
+  const all = RECIPES.map((r, i) => Object.assign({r, i}, recipeStatus(r)))
+    .filter(x => meal === "alle" || x.r.m.includes(meal))
+    .filter(x => !q || norm(x.r.t + " " + x.r.z.join(" ")).includes(q));
+  const ok = x => x.kind === "fit" || x.kind === "adapt" || (showWarn && x.kind === "warn");
+  const shown = all.filter(ok), hidden = all.length - shown.length;
+  let html = "";
+  if (q){
+    html = shown.sort((a, b) => (a.kind === "fit" ? 0 : 1) - (b.kind === "fit" ? 0 : 1)).map(x => recipeCard(x, open)).join("");
+  } else {
+    const day = new Date().toISOString().slice(0, 10);
+    const order = seededOrder(shown, day + people.active + meal + recipeShuffle);
+    const fit = order.filter(x => x.kind === "fit"), rest = order.filter(x => x.kind !== "fit");
+    const picks = fit.slice(0, 3).concat(rest).slice(0, 3);
+    const others = order.filter(x => !picks.includes(x));
+    if (picks.length) html += `<div class="rec-hd"><h2 class="section-title" style="margin:0">Heute für dich</h2><button type="button" class="btn btn-sm btn-quiet" data-reshuffle>${SVG.shuffle}Andere Vorschläge</button></div>` + picks.map(x => recipeCard(x, open)).join("");
+    if (others.length) html += `<h2 class="section-title">Alle passenden Rezepte (${others.length})</h2>` + others.map(x => recipeCard(x, open)).join("");
+  }
+  $("#recipeList").innerHTML = (html || `<div class="card empty">${SVG.bowl}<b>Keine passenden Rezepte</b>${q ? "Versuch einen anderen Suchbegriff." : hidden ? (showWarn ? "Für diese Mahlzeit passt gerade nichts zu deinem Profil." : "Schalte „Vorsicht“ ein oder wähle eine andere Mahlzeit.") : "Wähle eine andere Mahlzeit."}</div>`) +
     (hidden ? `<p class="meta" style="margin:var(--s3) var(--s1) 0">${hidden} Rezept${hidden>1?"e":""} ausgeblendet, weil sie nicht zu deinem Profil passen${showWarn ? "" : " oder Vorsicht-Zutaten enthalten"}.</p>` : "");
 }
 $("#recipeList").addEventListener("click", ev => {
+  if (ev.target.closest("[data-reshuffle]")){ recipeShuffle++; renderRecipes(); return; }
   const sh = ev.target.closest("[data-shop-r]");
-  if (sh){ const n = addShop(RECIPES[+sh.dataset.shopR].z.map(z => recipeItem(z).n).filter(x => !/^(salz|pfeffer|wasser)/i.test(x))); toast(n ? n + " Zutaten auf die Einkaufsliste gesetzt" : "Steht schon alles auf der Liste"); renderShell(); return; }
+  if (sh){ const rr = RECIPES[+sh.dataset.shopR], st0 = recipeStatus(rr), sw = st0.ad ? Object.fromEntries(st0.ad.swaps.map(x => [x.k, x.to])) : {};
+    const n = addShop(rr.z.map((z, k) => sw[k] || recipeItem(z).n).filter(x => !/^(salz|pfeffer|wasser|weglassen)/i.test(x))); toast(n ? n + " Zutaten auf die Einkaufsliste gesetzt" : "Steht schon alles auf der Liste"); renderShell(); return; }
   const b = ev.target.closest("[data-rr]"); if (!b) return;
   const i = +b.dataset.ri, r = RECIPES[i];
   let e = recipeEntry[i] && history.find(h => h.id === recipeEntry[i]);

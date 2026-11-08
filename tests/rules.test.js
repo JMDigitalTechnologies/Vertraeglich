@@ -1,0 +1,100 @@
+/* Regeltests: node tests/rules.test.js
+   Jede Zeile: Zutatenliste, Profil (Kategorie[:Stufe]), erwartete Ampel (G/Y/R) */
+"use strict";
+const fs = require("fs"), vm = require("vm"), path = require("path");
+const root = path.join(__dirname, "..");
+const ctx = {console}; vm.createContext(ctx);
+vm.runInContext(fs.readFileSync(path.join(root, "data.js"), "utf8") + "\n" +
+  fs.readFileSync(path.join(root, "engine.js"), "utf8").replace(/if \(typeof module !== "undefined"\)[\s\S]*$/, "") +
+  "\nthis.E = {evaluate, splitIngredients, recipeRaw, RECIPES, KEYS, FOODS};", ctx);
+const E = ctx.E;
+function prof(spec){
+  const on = {}, sens = {};
+  for (const k of E.KEYS){ on[k] = false; sens[k] = 2; }
+  for (const part of spec.split(",")){ const [k, s] = part.trim().split(":"); on[k] = true; if (s) sens[k] = +s; }
+  return {on, sens, mine: {}};
+}
+const CASES = [
+  // Gluten / Weizen
+  ["Weizenmehl, Wasser, Salz", "g", "R"],
+  ["Roggenmehl, Wasser, Salz", "wa", "G"],
+  ["Roggenmehl, Wasser, Salz", "g:3", "R"],
+  ["Maismehl, glutenfreie Weizenstärke, Zucker", "wa", "R"],
+  ["Reis, Glukosesirup (aus Weizen), Salz", "g:3", "G"],
+  ["Reis, Glukosesirup (aus Weizen), Salz", "wa", "G"],
+  ["Haferflocken (glutenfrei), Zucker", "g:3", "G"],
+  ["Haferflocken, Zucker", "g:3", "R"],
+  ["Reis, Zucker. Kann Spuren von Weizen enthalten.", "g:3", "R"],
+  ["Reis, Zucker. Kann Spuren von Weizen enthalten.", "g:1", "G"],
+  ["Buchweizenmehl, Wasser", "g:3", "G"],
+  ["Buchweizenmehl, Wasser", "wa", "G"],
+  ["Sojasauce, Reis", "g", "R"],
+  ["Tamari (glutenfrei), Reis", "g:3", "G"],
+  ["Gerstenmalzextrakt, Reis", "wa", "G"],
+  ["Gerstenmalzextrakt, Reis", "g", "R"],
+  // Laktose / Milcheiweiß
+  ["Vollmilch, Zucker", "l", "R"],
+  ["Laktosefreie Milch, Zucker", "l", "G"],
+  ["Laktosefreie Milch, Zucker", "m", "R"],
+  ["Butter, Mehl", "l", "G"],
+  ["Butter, Reismehl", "m", "R"],
+  ["Milchsäure, Reis", "l", "G"],
+  ["Milchsäure, Reis", "m", "G"],
+  ["Kokosmilch, Reis", "m", "G"],
+  ["Kakaobutter, Zucker", "m", "G"],
+  ["Erdnussbutter, Reis", "m", "G"],
+  ["Parmesan, Reis", "l", "G"],
+  // Histamin
+  ["Tomatenmark, Wasser", "h", "R"],
+  ["Hefeextrakt, Salz", "h", "R"],
+  ["Zitronensäure, Wasser", "h", "G"],
+  ["Rotwein, Wasser", "h", "R"],
+  ["Schweinefleisch, Salz", "h", "G"],
+  ["Weinsäure, Zucker", "h", "G"],
+  // Fructose / Sorbit / FODMAP
+  ["Apfelsaftkonzentrat, Wasser", "f", "R"],
+  ["Sorbit, Zucker", "s", "R"],
+  ["Sorbit, Zucker", "o", "R"],
+  ["Zwiebel, Reis, Salz", "o", "R"],
+  ["Reis, Karotte, Salz", "o", "G"],
+  // Allergene
+  ["Haselnüsse, Zucker", "nu", "R"],
+  ["Kokosnuss, Zucker", "nu", "G"],
+  ["Muskatnuss, Salz", "nu", "G"],
+  ["Erdnüsse, Salz", "p", "R"],
+  ["Erdnüsse, Salz", "nu", "G"],
+  ["Tintenfischringe, Mehl", "i", "G"],
+  ["Tintenfischringe, Mehl", "w", "R"],
+  ["Garnelen, Reis", "kr", "R"],
+  ["Thunfisch, Öl", "i", "R"],
+  ["Eier, Zucker", "e", "R"],
+  ["Eigelb, Zucker", "e", "R"],
+  ["Reis, Salz, Weißwein", "e", "G"],
+  ["Sojalecithin, Kakaobutter", "y", "R"],
+  ["Selleriesalz, Wasser", "c", "R"],
+  ["Senfsaat, Essig", "u", "R"],
+  ["Tahin, Kichererbsen", "z", "R"],
+  ["Lupinenmehl, Wasser", "v", "R"],
+  ["Getrocknete Aprikosen (geschwefelt)", "q", "R"],
+  ["Reis, Zucker. Kann Spuren von Sesam enthalten.", "z:1", "G"],
+  ["Reis, Zucker. Kann Spuren von Sesam enthalten.", "z", "Y"],
+  ["Reis, Zucker. Kann Spuren von Sesam enthalten.", "z:3", "R"],
+  // Tomate
+  ["Gewürze, Salz, Kartoffeln", "t", "Y"],
+  ["Tomatenpulver 0,5%, Kartoffeln, Salz, Öl, Zucker, Pfeffer", "t", "R"],
+  ["Kartoffeln, Salz", "t", "G"],
+  // Mengen
+  ["Kartoffeln, Sonnenblumenöl, Salz, Zucker, Pfeffer, Knoblauch 1%", "f", "G"],
+  ["Kartoffeln, Sonnenblumenöl, Salz, Zucker, Pfeffer, Knoblauch 1%", "f:3", "Y"],
+];
+let fail = 0;
+for (const [txt, spec, want] of CASES){
+  const {parts, spuren} = E.splitIngredients(txt);
+  const ev = E.evaluate({mode:"label", items: parts.map(n => ({n})), spuren, gf: /^Reis, Glukose/.test(txt) ? false : false}, prof(spec));
+  const got = ["G","Y","R"][ev.total];
+  if (got !== want){ fail++; console.log(`✕ [${spec}] erwartet ${want}, bekommen ${got}: ${txt}`); }
+}
+/* Rezepte: jede Zutat muss sich auswerten lassen */
+for (const r of E.RECIPES){ const items = E.recipeRaw(r).items; if (items.some(i => !i.n)){ fail++; console.log("✕ Rezept mit leerer Zutat: " + r.t); } }
+console.log(fail ? `\n${fail} von ${CASES.length} Tests fehlgeschlagen` : `✓ Alle ${CASES.length} Regeltests bestanden, ${E.RECIPES.length} Rezepte geprüft`);
+process.exit(fail ? 1 : 0);

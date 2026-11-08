@@ -13,6 +13,7 @@ const FEATURES = [
   {k:"symptoms",     n:"Beschwerden erfassen",     d:"Beschwerden mit Stärke und Uhrzeit – erkennt auch verzögerte Reaktionen", needs:"diary", where:"Tagebuch"},
   {k:"report",       n:"Bericht für den Arzt",     d:"Tagebuch und Auswertung als PDF oder Tabelle teilen", needs:"diary", where:"Tagebuch"},
   {k:"program",      n:"Ernährungsprogramm",       d:"Schritt für Schritt durch Karenz-, Test- und Dauerphase", needs:"diary", where:"Tagebuch"},
+  {k:"menu",         n:"Speisekarte prüfen",       d:"Speisekarte fotografieren – Gerichte mit kritischen Zutaten werden markiert", where:"Prüfen"},
   {k:"alternatives", n:"Alternativen vorschlagen", d:"Bei roten Produkten verträgliche Alternativen finden", where:"Ergebnis"},
   {k:"family",       n:"Mehrere Profile",          d:"Für Familie oder Partner – sieh sofort, für wen ein Produkt passt", where:"Ich"},
   {k:"emergency",    n:"Notfall",                  d:"Notruf, Notfallplan, Notfallkontakt und Ablaufdatum deines Adrenalin-Pens", where:"Notfall"},
@@ -42,6 +43,7 @@ function recommendFeatures(cats){
   if (cats.some(c => CAT[c] && CAT[c].grp === "all")){ r.add("card"); r.add("emergency"); }
   if (cats.includes("g") || cats.some(c => ["h","o","f","s","l"].includes(c))) r.add("card");
   if (cats.some(c => ["h","o","f","s"].includes(c))){ r.add("program"); r.add("symptoms"); }
+  if (cats.some(c => CAT[c] && CAT[c].grp === "all") || cats.includes("g")) r.add("menu");
   return r;
 }
 
@@ -210,8 +212,7 @@ function factorStats(){
     .filter(x => x.b >= 2 && x.b / x.nb >= 0.4).sort((a, b) => b.b - a.b);
 }
 function diaryExtrasTop(){
-  if (!F("symptoms")) return "";
-  return `<div class="quick"><button type="button" class="btn btn-secondary" data-fx="symptom">${SVG.warn}Beschwerden eintragen</button><button type="button" class="btn btn-outline" data-fx="free">${SVG.check}Beschwerdefreier Tag</button></div>`;
+  return openRatingsHtml() + (!F("symptoms") ? "" : `<div class="quick"><button type="button" class="btn btn-secondary" data-fx="symptom">${SVG.warn}Beschwerden eintragen</button><button type="button" class="btn btn-outline" data-fx="free">${SVG.check}Beschwerdefreier Tag</button></div>`);
 }
 function diaryAnalysisExtras(){
   let h = "";
@@ -306,6 +307,21 @@ function shareCsv(days){
 /* ================= Alternativen ================= */
 const OFF_PFIELDS = "code,product_name,product_name_de,generic_name_de,brands,ingredients_text_de,ingredients_text,allergens_tags,traces_tags,labels_tags";
 const hasAllergy = pr => KEYS.some(c => pr.on[c] && CAT[c].grp === "all");
+/* Kandidaten aus mehreren Quellen holen: neue Suche (Search-a-licious), API v2, alte Suche – je nachdem, was erreichbar ist */
+async function altCandidates(cat){
+  const errs = [];
+  const tries = [
+    async () => { const p = new URLSearchParams({q: `categories_tags:"${cat}"`, langs: "de,en", page_size: "60"});
+      const j = await fetchJson(APP_CONFIG.data.offSearch + "/search?" + p.toString(), 12000); return j.hits || []; },
+    async () => { const p = new URLSearchParams({categories_tags: cat, countries_tags_en: "germany", fields: OFF_PFIELDS, page_size: "50", sort_by: "unique_scans_n"});
+      const j = await fetchJson(APP_CONFIG.data.off + "/api/v2/search?" + p.toString(), 15000); return j.products || []; },
+    async () => { const p = new URLSearchParams({action:"process", json:"1", tagtype_0:"categories", tag_contains_0:"contains", tag_0:cat, page_size:"50", fields:OFF_PFIELDS, sort_by:"unique_scans_n"});
+      const j = await fetchJson(APP_CONFIG.data.off + "/cgi/search.pl?" + p.toString(), 15000); return j.products || []; }
+  ];
+  for (const t of tries){ try{ const l = await t(); if (l.length) return l; }catch(err){ errs.push(err.name === "AbortError" ? "Zeitüberschreitung" : err.message); } }
+  if (errs.length === tries.length) throw new Error(errs.join(" · "));
+  return [];
+}
 async function findAlternatives(e, out){
   const show = (h, k) => { setFb(out, h, k); out.classList.add("alt-out"); };
   show(loadingHtml("Suche Alternativen…"));
@@ -316,10 +332,13 @@ async function findAlternatives(e, out){
     if (!tags.length){ show(fbHtml("Keine Kategorie bekannt", "Für dieses Produkt ist bei Open Food Facts keine Kategorie hinterlegt."), "warn"); return; }
     let found = [];
     for (const cat of tags.slice(-2).reverse()){
-      const p = new URLSearchParams({categories_tags: cat, countries_tags_en: "germany", fields: OFF_PFIELDS, page_size: "60", sort_by: "unique_scans_n"});
-      const j = await fetchJson(APP_CONFIG.data.off + "/api/v2/search?" + p.toString(), 15000);
-      for (const prod of (j.products || [])){
-        if (!prod.code || prod.code === e.code || found.some(f => f.code === prod.code)) continue;
+      const cand = (await altCandidates(cat)).filter(p => p.code && p.code !== e.code);
+      /* Fehlen Zutaten in der Trefferliste, Details einzeln nachladen (max. 12) */
+      const need = cand.filter(p => !(p.ingredients_text_de || p.ingredients_text)).slice(0, 12);
+      const det = await Promise.all(need.map(p => fetchJson(APP_CONFIG.data.off + "/api/v2/product/" + encodeURIComponent(p.code) + ".json?lc=de&fields=" + OFF_PFIELDS + ",categories_tags", 10000).then(j => j.product ? Object.assign({code: p.code}, j.product) : null).catch(() => null)));
+      const full = cand.filter(p => p.ingredients_text_de || p.ingredients_text).concat(det.filter(Boolean));
+      for (const prod of full){
+        if (found.some(f => f.code === prod.code)) continue;
         const pr = productToRaw(prod); if (!pr || !pr.full) continue;
         const ev = evaluate(pr.raw, P());
         if (strict ? ev.total === 0 : ev.total < e._total){
@@ -335,7 +354,7 @@ async function findAlternatives(e, out){
     out.className = "alt-out"; out.hidden = false;
     out.innerHTML = `<ul class="list">${found.map(f => `<li><button type="button" class="row-btn" data-alt-code="${esc(f.code)}">${st(f.total)}<span class="txt"><b class="ell">${esc(f.name)}</b><small>${LABEL[f.total]} für ${multi() ? esc(personName()) : "dein Profil"}${f.allOk === true ? " · passt für alle" : ""}</small></span>${SVG.chev}</button></li>`).join("")}</ul>
       <p class="hint" style="margin-top:var(--s2)">Daten von Open Food Facts können unvollständig sein – prüf vor dem Kauf die Zutatenliste auf der Packung${strict ? ", gerade bei Allergien" : ""}.</p>`;
-  }catch(err){ show(fbHtml("Suche nicht möglich", "Open Food Facts ist gerade nicht erreichbar. Versuch es später noch einmal.", "", SVG.warn), "err"); }
+  }catch(err){ show(fbHtml("Suche gerade nicht möglich", "Open Food Facts antwortet im Moment nicht. Versuch es später noch einmal.<br><span class=\"meta\">Details: " + esc(err.message) + "</span>", `<button type="button" class="btn btn-sm btn-secondary" data-fx="altRetry">Nochmal versuchen</button>`, SVG.warn), "err"); }
 }
 
 /* ================= Favoriten & Einkaufsliste (Tab „Essen“) ================= */
@@ -428,7 +447,7 @@ function extrasClick(ev, e, el, ev0){
   const a = b.dataset.fx;
   if (a === "fav"){ toggleFav(e); showResult(e, el); renderFav(); return true; }
   if (a === "shop"){ addShop([e.name]) ? toast("Auf die Einkaufsliste gesetzt") : toast("Steht schon auf der Liste"); renderShop(); renderShell(); return true; }
-  if (a === "alt"){ e._total = ev0.total; b.hidden = true; findAlternatives(e, el.querySelector(".alt-out")); return true; }
+  if (a === "alt" || a === "altRetry"){ e._total = ev0.total; const ab = el.querySelector('[data-fx="alt"]'); if (ab) ab.hidden = true; findAlternatives(e, el.querySelector(".alt-out")); return true; }
   return false;
 }
 
@@ -795,6 +814,9 @@ function renderShell(){
   if (cur === "v-eat") $("#viewTitle").textContent = TITLES.eat;
   if (cur === "v-sos"){ $("#viewTitle").textContent = TITLES.sos; renderSos(); }
   if (cur === "v-eat") renderEat();
+  const mi = $("#menuItem"); if (mi) mi.hidden = !F("menu");
+  const open = openRatings().length, nd = $("#numDiary"); if (nd){ nd.hidden = !open || !F("diary"); nd.textContent = open; }
+  renderDataCard();
   /* Hinweise als Punkte am Tab statt Karten auf „Prüfen“ */
   $("#dotSos").hidden = !penWarnings().length;
   $("#dotMe").hidden = !settings.newHint;
@@ -809,7 +831,7 @@ function renderShell(){
 function globalFx(ev){
   const b = ev.target.closest("[data-fx]"); if (!b) return false;
   const a = b.dataset.fx;
-  const map = {card: openCardSheet, program: () => openProgramSheet(), emEdit: openEmergencyEdit,
+  const map = {backup: makeBackup, restore: () => $("#backupFile").click(), card: openCardSheet, program: () => openProgramSheet(), emEdit: openEmergencyEdit,
     symptom: openSymptomSheet, free: openFreeSheet, report: openReportSheet, people: openPeopleSheet,
     toFeatures: () => { settings.newHint = false; saveSettings(); renderShell(); const c = $("#featCard"); if (c) c.scrollIntoView({behavior:"smooth", block:"start"}); },
     dismissNew: () => { settings.newHint = false; saveSettings(); renderShell(); }};
@@ -820,9 +842,137 @@ document.addEventListener("click", ev => {
   if (ev.target.closest("#sheetIn")) return;
   const es = ev.target.closest("[data-eat-sec]"); if (es){ eatSection = es.dataset.eatSec; renderEat(); return; }
   const l = ev.target.closest("#cardInline [data-lang]"); if (l){ settings.cardLang = l.dataset.lang; saveSettings(); renderSos(); return; }
-  if (ev.target.closest("#progTop, #analysisTools, #analysis, #peopleCard, #ichTop, #sosBody")) globalFx(ev);
+  if (ev.target.closest("#progTop, #analysisTools, #analysis, #peopleCard, #ichTop, #sosBody, #dataCard")) globalFx(ev);
 });
 document.addEventListener("change", ev => { const t = ev.target.closest("[data-feat]"); if (t && t.closest("#featCard")) setFeature(t.dataset.feat, t.checked); });
+
+/* ================= Offene Bewertungen (Erinnerung) ================= */
+function openRatings(){
+  const now = Date.now(), derived = new Set(analysisEntries().filter(x => x.derived).map(x => x.id));
+  return myEntries().filter(h => h.src !== "symptom" && isEaten(h) && !h.reaction && !derived.has(h.id) && h.ignoreRating !== true)
+    .filter(h => { const t = mealTime(h); return now - t >= 3*3600e3 && now - t <= 3*864e5; });
+}
+function openRatingsHtml(){
+  const l = openRatings(); if (!l.length) return "";
+  return `<section class="card open-rate"><div class="card-hd"><h2 class="h2">Wie hast du es vertragen?</h2><span class="meta">${l.length} offen</span></div>
+    <p class="hint" style="margin:0 0 var(--s2)">Ein Tipp genügt – je mehr Bewertungen, desto besser die Auswertung.</p>
+    <ul class="list">${l.slice(0, 5).map(h => `<li class="ing"><div class="ing-line"><span class="ing-name">${esc(h.name)}</span><span class="meta">${dayLabel(mealTime(h))}, ${fmtTime(mealTime(h))}</span></div>${reactHtml(h)}<button type="button" class="btn-link sm" data-skip-rate="${h.id}">Weiß ich nicht mehr</button></li>`).join("")}</ul></section>`;
+}
+document.addEventListener("click", ev => {
+  const sk = ev.target.closest("[data-skip-rate]");
+  if (sk){ const h = history.find(x => x.id === sk.dataset.skipRate); if (h){ h.ignoreRating = true; saveHistory(); renderDiary(); renderShell(); } return; }
+  if (ev.target.closest("#analysisTools [data-react]")) handleActions(ev, () => { renderDiary(); renderShell(); });
+});
+
+/* ================= Austauschvorschläge & Rezept-Anpassung ================= */
+function swapFor(name, cats){
+  if (!cats.length) return null;
+  const n = norm(name);
+  for (const s of SUBS){
+    if (!s.re.test(n)) continue;
+    if (cats.every(c => s.for[c])) return [...new Set(cats.map(c => s.for[c]))].join(" / ");
+  }
+  return null;
+}
+function adaptRecipe(r, ev){
+  const swaps = [];
+  const items = recipeRaw(r).items.map((it, k) => {
+    const i = ev.items[k], bad = ev.cats.filter(c => i.lvl[c] > 0);
+    if (!bad.length && i.mine !== "bad") return it;
+    const to = swapFor(it.n, bad.length ? bad : []);
+    if (!to) { swaps.push(null); return it; }
+    swaps.push({k, from: it.n.replace(/\s*\([^)]*\)/g, ""), to});
+    return /^weglassen/i.test(to) ? {n:"", s:it.s} : {n: to.split(" / ")[0].split(" oder ")[0], s: it.s};
+  });
+  if (!swaps.length || swaps.includes(null)) return null;
+  const ev2 = evaluate({mode:"recipe", items: items.filter(x => x.n)}, P());
+  return ev2.total === 0 ? {swaps} : null;
+}
+function subsHtml(name, lv, cats){
+  const bad = cats.filter(c => lv[c] > 0); if (!bad.length) return "";
+  const n = norm(name), list = [];
+  for (const s of SUBS){ if (!s.re.test(n)) continue; for (const c of bad) if (s.for[c] && !list.some(x => x.t === s.for[c])) list.push({c, t: s.for[c]}); }
+  if (!list.length) return "";
+  return `<section class="block"><h3 class="block-title">Besser verträglich</h3><ul class="subs">${list.map(x => `<li>${badge(x.c, 0)} ${esc(x.t)}</li>`).join("")}</ul></section>`;
+}
+
+/* ================= Scanner: Taschenlampe & Zoom ================= */
+let camTrack = null, torchOn = false;
+function camExtras(stream){
+  const el = $("#camTools"); if (!el || !stream) return;
+  camTrack = stream.getVideoTracks()[0]; torchOn = false;
+  const caps = camTrack && camTrack.getCapabilities ? camTrack.getCapabilities() : {};
+  let h = "";
+  if (caps.torch) h += `<button type="button" class="btn btn-sm btn-outline" id="torchBtn" aria-pressed="false">Taschenlampe</button>`;
+  if (caps.zoom && caps.zoom.max > caps.zoom.min) h += `<label class="sr-only" for="zoomIn">Zoom</label><input type="range" id="zoomIn" min="${caps.zoom.min}" max="${Math.min(caps.zoom.max, 5)}" step="${caps.zoom.step || 0.1}" value="${caps.zoom.min}">`;
+  el.innerHTML = h; el.hidden = !h;
+  const tb = $("#torchBtn"); if (tb) tb.onclick = async () => { try{ torchOn = !torchOn; await camTrack.applyConstraints({advanced:[{torch: torchOn}]}); tb.setAttribute("aria-pressed", torchOn); tb.classList.toggle("btn-primary", torchOn); }catch(e){ toast("Taschenlampe wird hier nicht unterstützt"); } };
+  const zi = $("#zoomIn"); if (zi) zi.oninput = () => { camTrack.applyConstraints({advanced:[{zoom: +zi.value}]}).catch(() => {}); };
+}
+function camExtrasOff(){ const el = $("#camTools"); if (el){ el.hidden = true; el.innerHTML = ""; } camTrack = null; }
+
+/* ================= Speisekarte fotografieren ================= */
+function rateMenuLine(line){
+  const t = rateText(line, {}), n = norm(line), res = Object.assign({}, t.res), why = {};
+  for (const c of KEYS){ res[c] = res[c] || 0; why[c] = t.why[c].slice(); }
+  for (const r of MENU_RULES){ if (!r.re.test(n)) continue; for (const c of KEYS) if (r[c] != null && r[c] > res[c]){ res[c] = r[c]; if (r.why && !why[c].includes(r.why)) why[c].push(r.why); } }
+  return {res, why};
+}
+$("#menuBtn") && $("#menuBtn").addEventListener("click", () => $("#menuPhoto").click());
+$("#menuPhoto").addEventListener("change", async ev => {
+  const file = ev.target.files && ev.target.files[0]; ev.target.value = ""; if (!file) return;
+  const inn = $("#sheetIn");
+  inn.innerHTML = `<div id="menuOut">${loadingHtml("Lade Texterkennung (beim ersten Mal einige MB)…")}</div>`;
+  openSheet("Speisekarte", {type:"menu"});
+  try{
+    const w = await getOcrWorker(m => { const o = $("#menuOut"); if (o && m && m.status === "recognizing text") o.innerHTML = loadingHtml("Lese Speisekarte… " + Math.round((m.progress || 0) * 100) + " %"); });
+    const {data} = await w.recognize(await prepForOcr(file));
+    const lines = String(data && data.text || "").split(/\n+/).map(l => l.replace(/[.·…_]{2,}.*$/, "").replace(/\s*\d+[.,]\d{2}\s*€?\s*$/, "").trim()).filter(l => l.length >= 4 && /[a-zäöü]{3}/i.test(l));
+    const cats = activeCats();
+    const rows = lines.map(l => { const r = rateMenuLine(l); const lvl = Math.max(0, ...cats.map(c => finalLevel(c, r.res[c], false, P().sens[c]))); return {l, r, lvl, bad: cats.filter(c => finalLevel(c, r.res[c], false, P().sens[c]) > 0)}; });
+    const crit = rows.filter(x => x.lvl > 0).length;
+    $("#menuOut").innerHTML = !rows.length ? fbHtml("Kein Text erkannt", "Fotografiere die Karte gerade, nah und bei gutem Licht.") :
+      `<div class="feedback fb-warn">${fbHtml(crit ? crit + " Gericht" + (crit > 1 ? "e" : "") + " mit möglichen Problemzutaten" : "Keine offensichtlichen Problemzutaten erkannt", "Nur ein grober Hinweis: Speisekarten nennen nie alle Zutaten. Frag im Zweifel nach" + (F("card") ? " – am besten mit deiner Allergiekarte." : "."), F("card") ? `<button type="button" class="btn btn-sm btn-secondary" data-menu-card>Allergiekarte zeigen</button>` : "", SVG.warn)}</div>
+       <div class="card flush" style="margin-top:var(--s3)">${rows.sort((a, b) => b.lvl - a.lvl).map(x => `<div class="menu-line">${st(x.lvl)}<div class="txt"><b>${esc(x.l)}</b>${x.bad.length ? `<div class="meta">${x.bad.map(c => esc(CATS[c]) + ": " + esc((x.r.why[c] || []).join(", ") || "möglich")).join(" · ")}</div>` : ""}</div></div>`).join("")}</div>`;
+  }catch(e){ $("#menuOut").innerHTML = fbHtml("Texterkennung nicht möglich", "Bist du online? Beim ersten Mal muss die Texterkennung geladen werden.", "", SVG.warn); }
+  inn.onclick = e2 => { if (e2.target.closest("[data-menu-card]")) openCardSheet(); };
+});
+
+/* ================= Datensicherung ================= */
+function renderDataCard(){
+  const el = $("#dataCard"); if (!el) return;
+  const last = settings.lastBackup;
+  const n = history.filter(h => h.src === "symptom" || isEaten(h)).length;
+  el.innerHTML = `<h2 class="h2">Daten sichern</h2>
+    <p class="hint" style="margin-top:2px">Alles liegt nur auf diesem Gerät. Sichere es regelmäßig – z. B. in „Dateien“ oder per AirDrop aufs neue Handy.${n ? ` Tagebuch: ${n} Einträge.` : ""}</p>
+    ${last ? `<p class="meta">Letzte Sicherung: ${new Date(last).toLocaleDateString("de-DE")}</p>` : (n >= 10 ? `<div class="note warn">Noch keine Sicherung – bei ${n} Einträgen empfehlenswert.</div>` : "")}
+    <div class="quick" style="margin-top:var(--s2)"><button type="button" class="btn btn-secondary" data-fx="backup">Sicherung erstellen</button><button type="button" class="btn btn-outline" data-fx="restore">Sicherung laden</button></div>
+    ${APP_CONFIG.links.privacy || APP_CONFIG.links.imprint ? `<p class="fine">${APP_CONFIG.links.imprint ? `<a href="${esc(APP_CONFIG.links.imprint)}">Impressum</a>` : ""}${APP_CONFIG.links.privacy && APP_CONFIG.links.imprint ? " · " : ""}${APP_CONFIG.links.privacy ? `<a href="${esc(APP_CONFIG.links.privacy)}">Datenschutz</a>` : ""}</p>` : ""}`;
+}
+function makeBackup(){
+  syncPerson();
+  const data = {app: APP_CONFIG.name, kind: "vertraeglich-backup", version: 1, created: new Date().toISOString(),
+    data: {vt_profile: LS.get("vt_profile"), vt_history: LS.get("vt_history"), vt_people: LS.get("vt_people"), vt_settings: LS.get("vt_settings"), vt_lists: LS.get("vt_lists")}};
+  settings.lastBackup = Date.now(); saveSettings(); data.data.vt_settings = LS.get("vt_settings");
+  shareFile(JSON.stringify(data), "vertraeglich-sicherung-" + new Date().toISOString().slice(0, 10) + ".json", "application/json");
+  renderDataCard();
+}
+$("#backupFile").addEventListener("change", async ev => {
+  const f = ev.target.files && ev.target.files[0]; ev.target.value = ""; if (!f) return;
+  try{
+    const j = JSON.parse(await f.text());
+    if (!j || j.kind !== "vertraeglich-backup" || !j.data) throw new Error("format");
+    const n = ((j.data.vt_history || {}).items || []).length;
+    const inn = $("#sheetIn");
+    inn.innerHTML = `<p style="margin-top:0">Sicherung vom <b>${new Date(j.created).toLocaleString("de-DE")}</b> mit ${n} Einträgen.</p>
+      <div class="note warn">Die aktuellen Daten auf diesem Gerät werden dabei ersetzt.</div>
+      <div class="sheet-actions"><button type="button" class="btn btn-primary btn-block" id="restoreGo">Wiederherstellen</button></div>`;
+    openSheet("Sicherung laden", {type:"restore"});
+    inn.onclick = e2 => { if (!e2.target.closest("#restoreGo")) return;
+      Object.entries(j.data).forEach(([k, v]) => { if (v != null) LS.set(k, v); });
+      toast("Wiederhergestellt – App wird neu geladen"); setTimeout(() => location.reload(), 800); };
+  }catch(e){ toast("Das ist keine gültige Sicherungsdatei"); }
+});
 
 /* ================= Offline (Service Worker) ================= */
 if ("serviceWorker" in navigator && location.protocol === "https:"){
