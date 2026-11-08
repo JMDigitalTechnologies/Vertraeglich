@@ -26,6 +26,7 @@
   --line:#e6dccb; --line-strong:#8a8072;
   --brand:#16603f; --brand-2:#2f8a57; --on-brand:#ffffff; --brand-soft:#dcefe2; --brand-ink:#0f4e32;
   --accent:#e2552b; --accent-soft:#fde4da; --saffron:#f2b233; --berry:#8e2b52;
+  --hero-1:#14583a; --hero-2:#237a4c; --hero-ink:#0f4e32; --glow:rgba(242,178,51,.10);
   --ok:#1b7a47;   --on-ok:#ffffff;   --ok-soft:#ddf2e4;   --ok-ink:#0f5c33;
   --warn:#f0a619; --on-warn:#2b1b00; --warn-soft:#fff0cf; --warn-ink:#6e4300;
   --bad:#d23a22;  --on-bad:#ffffff;  --bad-soft:#fde2db;  --bad-ink:#9b2210;
@@ -60,6 +61,7 @@
     --line:#35302a; --line-strong:#7d7466;
     --brand:#5fcf95; --brand-2:#3fae78; --on-brand:#06261a; --brand-soft:#173a29; --brand-ink:#8ee3b5;
     --accent:#ff7a4f; --accent-soft:#3e2116; --saffron:#f5c252; --berry:#e07aa3;
+    --hero-1:#0f3f2a; --hero-2:#17583a; --hero-ink:#0f4e32; --glow:transparent;
     --ok:#4cc28a;   --on-ok:#03241a;   --ok-soft:#173427;   --ok-ink:#7fd9ac;
     --warn:#f0b04a; --on-warn:#2b1d00; --warn-soft:#3a2c12; --warn-ink:#f5c674;
     --bad:#ff7b70;  --on-bad:#330905;  --bad-soft:#3e1d1a;  --bad-ink:#ff9d94;
@@ -479,19 +481,17 @@ details.disc[open]>summary .chev{transform:rotate(90deg)}
 .acard .who{font-size:15px;color:#333;margin-bottom:var(--s2)}
 
 /* ---------- Visuelles Upgrade: Küchen-Look ---------- */
-body{background:var(--bg) radial-gradient(1200px 500px at 110% -10%, color-mix(in srgb, var(--saffron) 14%, transparent), transparent 60%) no-repeat}
+body{background:var(--bg) radial-gradient(900px 420px at 110% -10%, var(--glow), transparent 60%) no-repeat}
 .top h1{font-weight:800;letter-spacing:-.03em}
 .card{border-radius:20px;border-color:var(--line);box-shadow:var(--shadow-1)}
-.hero{position:relative;overflow:hidden;border:0;color:#fff;background:
-  radial-gradient(160px 160px at 92% 8%, rgba(242,178,51,.35), transparent 70%),
-  radial-gradient(220px 140px at 0% 110%, rgba(226,85,43,.35), transparent 70%),
-  linear-gradient(140deg, var(--brand) 0%, var(--brand-2) 100%);
-  box-shadow:0 12px 30px color-mix(in srgb, var(--brand) 35%, transparent)}
-.hero::after{content:"";position:absolute;right:-28px;bottom:-34px;width:150px;height:150px;border-radius:50%;border:18px solid rgba(255,255,255,.08);pointer-events:none}
+.hero{position:relative;overflow:hidden;border:0;color:#fff;background:linear-gradient(150deg, var(--hero-1) 0%, var(--hero-2) 100%);
+  box-shadow:0 12px 28px rgba(15,60,40,.28)}
+.hero::after{content:"";position:absolute;right:-40px;top:-40px;width:150px;height:150px;border-radius:50%;background:rgba(255,255,255,.06);pointer-events:none}
 .hero .lead{color:rgba(255,255,255,.92);font-weight:500}
-.hero #scanBtn{background:#fff;color:var(--brand-ink);box-shadow:0 6px 18px rgba(0,0,0,.18);font-weight:750}
+.hero #scanBtn{background:#fff;color:var(--hero-ink);box-shadow:0 6px 18px rgba(0,0,0,.2);font-weight:750}
 .hero #scanBtn svg{color:var(--accent)}
-.hero .or{color:rgba(255,255,255,.8)}
+.hero .or{color:rgba(255,255,255,.85)}
+.hero > *{position:relative;z-index:1}
 .hero .or::before,.hero .or::after{background:rgba(255,255,255,.3)}
 .hero .input{background:rgba(255,255,255,.96);border-color:transparent;color:#191712}
 .hero .field svg{color:#6a6357}
@@ -705,7 +705,7 @@ body{background:var(--bg) radial-gradient(1200px 500px at 110% -10%, color-mix(i
 
 <script>
 /* Auto-Update: bei jedem Öffnen prüfen, ob es eine neuere Version gibt, und dann neu laden */
-const APP_VERSION = 14;
+const APP_VERSION = 15;
 (function(){
   document.getElementById("ver").textContent = "Version " + APP_VERSION;
   let checking = false;
@@ -729,10 +729,10 @@ const APP_VERSION = 14;
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") checkUpdate(); });
 })();
 </script>
-<script src="config.js?v=14"></script>
-<script src="data.js?v=14"></script>
-<script src="engine.js?v=14"></script>
-<script src="app.js?v=14"></script>
-<script src="features.js?v=14"></script>
+<script src="config.js?v=15"></script>
+<script src="data.js?v=15"></script>
+<script src="engine.js?v=15"></script>
+<script src="app.js?v=15"></script>
+<script src="features.js?v=15"></script>
 </body>
 </html>
