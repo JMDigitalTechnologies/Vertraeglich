@@ -447,7 +447,7 @@ const PROGRAMS = {
       {n:"Personalisierung", dur:"dauerhaft", d:"Iss wieder alles, was du gut vertragen hast. Was Beschwerden gemacht hat, nur in kleinen Mengen – die Verträglichkeit ist oft eine Frage der Menge."}],
     tests:[["fructose","Fruktose","z. B. Honig oder Mango",["f"],["honig","mango"]],["lactose","Laktose","z. B. Milch oder Naturjoghurt",["l","m"],["milch"]],
       ["sorbitol","Sorbit","z. B. Brombeeren oder Avocado",["s"],["avocado"]],["mannitol","Mannit","z. B. Champignons oder Blumenkohl",[],["champignons","blumenkohl"]],
-      ["fructan_grain","Fruktane aus Getreide","z. B. Weizenbrot",["g"],["weizenbrot","weizenmehl"]],["fructan_onion","Fruktane aus Zwiebel","z. B. Zwiebel",[],["zwiebel"]],
+      ["fructan_grain","Fruktane aus Getreide","z. B. Weizenbrot",["g","wa"],["weizenbrot","weizenmehl"]],["fructan_onion","Fruktane aus Zwiebel","z. B. Zwiebel",[],["zwiebel"]],
       ["fructan_garlic","Fruktane aus Knoblauch","z. B. Knoblauch",[],["knoblauch"]],["gos","GOS (Hülsenfrüchte)","z. B. Kichererbsen oder Linsen",["y","v","p"],["kichererbsen","linsen"]]]},
   histamin: {n:"Histaminarm", cat:"h", pause:2,
     pre:["Allergien und andere Ursachen (z. B. Mastzellerkrankung, Medikamente) möglichst vorher ärztlich abklären.",
@@ -616,6 +616,7 @@ const CARD_CAT = {
   kr:{de:"Krebstiere (Garnelen, Krabben, Hummer)", en:"crustaceans (shrimp, prawns, crab, lobster)", it:"crostacei (gamberi, granchi, aragosta)", es:"crustáceos (gambas, cangrejo, langosta)", fr:"crustacés (crevettes, crabe, homard)", nl:"schaaldieren (garnalen, krab, kreeft)"},
   w:{de:"Weichtiere (Muscheln, Tintenfisch, Schnecken)", en:"molluscs (mussels, clams, squid, octopus, snails)", it:"molluschi (cozze, vongole, calamari, polpo, lumache)", es:"moluscos (mejillones, almejas, calamar, pulpo, caracoles)", fr:"mollusques (moules, palourdes, calmar, poulpe, escargots)", nl:"weekdieren (mosselen, inktvis, slakken)"},
   v:{de:"Lupine (Lupinenmehl)", en:"lupin (lupin flour)", it:"lupini (farina di lupini)", es:"altramuz (harina de altramuz)", fr:"lupin (farine de lupin)", nl:"lupine (lupinemeel)"},
+  wa:{de:"Weizen in jeder Form (auch Dinkel, Hartweizen, Weizenstärke, Paniermehl, Couscous)", en:"wheat in any form (incl. spelt, durum wheat, wheat starch, breadcrumbs, couscous)", it:"frumento in qualsiasi forma (anche farro, grano duro, amido di frumento, pangrattato, cuscus)", es:"trigo en cualquier forma (también espelta, trigo duro, almidón de trigo, pan rallado, cuscús)", fr:"blé sous toutes ses formes (y compris épeautre, blé dur, amidon de blé, chapelure, couscous)", nl:"tarwe in elke vorm (ook spelt, durumtarwe, tarwezetmeel, paneermeel, couscous)"},
   q:{de:"Sulfite (Schwefel, z. B. in Wein, Trockenobst)", en:"sulphites (e.g. in wine, dried fruit)", it:"solfiti (ad es. nel vino, frutta secca)", es:"sulfitos (p. ej. en el vino, fruta seca)", fr:"sulfites (p. ex. dans le vin, fruits secs)", nl:"sulfieten (bijv. in wijn, gedroogd fruit)"}
 };
 function cardHtml(){
@@ -667,6 +668,7 @@ function renderSos(){
       <section class="card"><div class="sos-who"><span class="meta">Notfallinfo</span><b>${esc(personName())}</b><span>${allergies.length ? "Allergie: " + esc(allergies.map(c => c === "g" ? "Zöliakie" : CATS[c]).join(", ")) : "Keine Allergie im Profil"}</span>${em.meds ? `<span>Medikamente: ${esc(em.meds)}</span>` : ""}</div></section>
       ${warn.length ? `<div class="feedback fb-${warn.some(x => x.days < 0) ? "err" : "warn"}">${fbHtml(warn.map(penTxt).join(" · "), "Rechtzeitig ein neues Rezept besorgen.", "", SVG.warn)}</div>` : ""}
       ${allergies.length && pens.length < 2 ? `<div class="note">Empfehlung: immer 2 Adrenalin-Pens dabeihaben.</div>` : ""}
+      ${profile.on.wa ? `<div class="note">Weizenallergie mit Reaktion nur bei Anstrengung (WDEIA)? Dann nach Weizen einige Stunden (oft 4–6) keinen Sport, keinen Alkohol und keine Schmerzmittel wie Ibuprofen oder ASS – genaue Regeln mit deiner Ärztin oder deinem Arzt absprechen.</div>` : ""}
       <section class="card"><h2 class="h2">Notfallplan</h2><ol class="steps">${(em.plan ? em.plan.split(/\n+/).filter(Boolean) : PLAN_DEFAULT).map(s => `<li>${esc(s)}</li>`).join("")}</ol>
         ${em.plan ? "" : `<p class="hint">Allgemeiner Ablauf nach den Leitlinien – maßgeblich ist der Notfallplan deiner Ärztin oder deines Arztes. Du kannst ihn unten eintragen.</p>`}</section>
       ${pens.length ? `<section class="card"><h2 class="h2">Adrenalin-Pens</h2><ul class="list">${pens.map(p => `<li class="ing"><div class="ing-line"><span class="ing-name">${esc(p.label || "Adrenalin-Pen")}</span><span class="meta">gültig bis ${esc(p.exp ? p.exp.split("-").reverse().join("/") : "–")}</span></div></li>`).join("")}</ul></section>` : ""}

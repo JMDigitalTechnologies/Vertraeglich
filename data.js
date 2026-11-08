@@ -168,10 +168,10 @@ const FOODS = FOOD_RAW.trim().split("\n").map(l => {
    ov:true = Ausnahme: überschreibt die Kategorie für diese Zutat (kleinster Ausnahme-Wert gewinnt) */
 const RULES = [
   /* --- Ausnahmen --- */
-  {re:/glu[ck]osesirup|dextrose|maltodextrin|glu[ck]ose\b|glucose syrup/, g:0, ov:true},
+  {re:/glu[ck]osesirup|dextrose|maltodextrin|glu[ck]ose\b|glucose syrup/, g:0, wa:0, ov:true},
   {re:/glu[ck]osesirup(?!.*fru[ck]tose)|dextrose|maltodextrin|glucose syrup/, o:0, ov:true},
   {re:/weizenstaerke|wheat starch/, g:1, o:1, ov:true, why:"Weizenstärke – kann glutenfrei aufbereitet sein, Kennzeichnung prüfen"},
-  {re:/buchweizen|buckwheat/, g:0, ov:true},
+  {re:/buchweizen|buckwheat/, g:0, wa:0, ov:true},
   {re:/buchweizen|buckwheat/, o:0, ov:true},
   {re:/glutenfrei|gluten-free|gluten free|ohne gluten/, g:0, ov:true},
   {re:/laktosefrei|lactose-free|lactose free|ohne laktose/, l:0, ov:true},
@@ -182,6 +182,10 @@ const RULES = [
   {re:/milchsaeure|lactic acid|milchsaeurebakterien|kakaobutter|cocoa butter|erdnussbutter|sheabutter|kokosmilch|kokosnussmilch|hafermilch|mandelmilch|sojamilch|reismilch|milchreis|e ?270(?!\d)|e ?32[5-7](?!\d)/, m:0, ov:true},
   {re:/kokosnuss|kokos|muskatnuss|muskat|(^|[^a-z])erdnuss/, nu:0, ov:true},
   {re:/tintenfisch/, i:0, ov:true},
+
+  /* --- Weizenallergie (Weizeneiweiß – unabhängig von „glutenfrei“) --- */
+  {re:/weizen|dinkel|emmer|einkorn|kamut|khorasan|durum|gruenkern|bulgur|couscous|seitan|griess|triticale|wheat|spelt|paniermehl|semmelbroesel/, wa:2, why:"Weizen bzw. Weizenart – auch als Stärke oder glutenfrei relevant"},
+  {re:/gluten(?!frei|-free| free)|glutenhaltiges getreide/, wa:1, why:"Gluten – Getreideart unklar, kann Weizen sein"},
 
   /* --- Gluten --- */
   {re:/weizen|dinkel|roggen|gerste|emmer|einkorn|kamut|khorasan|gruenkern|triticale|bulgur|couscous|seitan|griess|paniermehl|semmelbroesel|wheat|barley|(^|[^a-z])rye([^a-z]|$)|spelt|durum/, g:2, why:"Glutenhaltiges Getreide"},

@@ -18,7 +18,8 @@ const MEALS = {alle:"Alle", fruehstueck:"Frühstück", mittag:"Mittagessen", abe
 const SENS_TXT_INT = {1:"Nur klare Problemzutaten zählen", 2:"Standard", 3:"Auch „Vorsicht“-Zutaten und kleine Mengen meiden"};
 const SENS_TXT_ALL = {1:"Nur enthaltene Zutaten – Spurenhinweise ignorieren", 2:"Standard – Spurenhinweise als Vorsicht", 3:"Streng – auch Spurenhinweise meiden"};
 const SENS_TXT = Object.fromEntries(CAT_DEF.map(d => [d.k, d.grp === "all" ? SENS_TXT_ALL : SENS_TXT_INT]));
-SENS_TXT.g = {1:"Glutensensitivität – Hafer und Spuren ok", 2:"Standard", 3:"Zöliakie – auch Spuren und Hafer meiden"};
+SENS_TXT.g = {1:"Gluten-/Weizensensitivität: die Menge macht's – Spuren und glutenfreier Hafer ok", 2:"Standard: glutenhaltige Zutaten meiden, Spurenhinweise als Vorsicht", 3:"Zöliakie: streng, auch Spuren und nicht glutenfreier Hafer – glutenfreie Weizenstärke ist erlaubt"};
+const SENS_LBL_CAT = {g:["Sensitivität","Standard","Zöliakie"]};
 SENS_TXT.t = {1:"Nur eindeutige Tomaten-Zutaten zählen", 2:"Standard – Gewürzmischungen als Vorsicht", 3:"Auch Gewürz- und Gemüsemischungen meiden (könnten Tomate enthalten)"};
 const SENS_LBL = ["leicht","mittel","stark"];
 const CAT_DESC = Object.fromEntries(CAT_DEF.map(d => [d.k, d.desc]));
@@ -29,7 +30,7 @@ const GROUPS = [
 /* Open Food Facts Allergen-Tags → Kategorien */
 const OFF_ALLERGENS = {"en:gluten":"g", "en:milk":"m", "en:eggs":"e", "en:soybeans":"y", "en:nuts":"nu", "en:peanuts":"p", "en:celery":"c", "en:mustard":"u",
   "en:sesame-seeds":"z", "en:fish":"i", "en:crustaceans":"kr", "en:molluscs":"w", "en:lupin":"v", "en:sulphur-dioxide-and-sulphites":"q"};
-const ALLERGEN_WORD = {g:"Gluten", m:"Milch", e:"Ei", y:"Soja", nu:"Schalenfrüchte", p:"Erdnüsse", c:"Sellerie", u:"Senf", z:"Sesam", i:"Fisch", kr:"Krebstiere", w:"Weichtiere", v:"Lupine", q:"Sulfite"};
+const ALLERGEN_WORD = {wa:"Weizen", g:"Gluten", m:"Milch", e:"Ei", y:"Soja", nu:"Schalenfrüchte", p:"Erdnüsse", c:"Sellerie", u:"Senf", z:"Sesam", i:"Fisch", kr:"Krebstiere", w:"Weichtiere", v:"Lupine", q:"Sulfite"};
 
 /* ---------- UI-Bausteine ---------- */
 const SYM = ["✓","!","✕"];
@@ -530,6 +531,7 @@ function productToRaw(p, code){
     if (probe.items.some(i => i.r[c] >= 2)) continue;
     const x = Object.fromEntries(KEYS.map(k => [k, 0])); x[c] = 2;
     if (c === "m" && !lf) x.l = 1;
+    if (c === "g" && !probe.items.some(i => i.r.wa >= 2)) x.wa = 1; /* Gluten laut Kennzeichnung – ob aus Weizen, ist unklar */
     items.push({n:"Allergenkennzeichnung: " + ALLERGEN_WORD[c], fix:true, x, note:"Laut Allergenkennzeichnung enthalten"});
   }
   const trWords = traces.map(t => OFF_ALLERGENS[t]).filter(Boolean).map(c => ALLERGEN_WORD[c]);
@@ -783,7 +785,7 @@ function renderProfile(){
       <ul class="cat-list">${cs.map(d => { const c = d.k, on = profile.on[c]; return `
         <li class="cat-row">
           <label class="cat-toggle"><span class="txt"><b>${esc(d.n)}</b><small>${esc(CAT_DESC[c])}</small></span><span class="sw"><input type="checkbox" role="switch" data-on="${c}"${on ? " checked" : ""}><span></span></span></label>
-          ${on ? `<div class="sens"><div class="seg" role="radiogroup" aria-label="Empfindlichkeit ${esc(d.n)}">${[1,2,3].map(s => `<button type="button" role="radio" aria-checked="${profile.sens[c]===s}" data-sens="${c}" data-s="${s}">${SENS_LBL[s-1]}</button>`).join("")}</div><p class="sens-hint">${esc(SENS_TXT[c][profile.sens[c]])}</p></div>` : ""}
+          ${on ? `<div class="sens"><div class="seg" role="radiogroup" aria-label="Empfindlichkeit ${esc(d.n)}">${[1,2,3].map(s => `<button type="button" role="radio" aria-checked="${profile.sens[c]===s}" data-sens="${c}" data-s="${s}">${(SENS_LBL_CAT[c] || SENS_LBL)[s-1]}</button>`).join("")}</div><p class="sens-hint">${esc(SENS_TXT[c][profile.sens[c]])}</p></div>` : ""}
         </li>`; }).join("")}</ul>
     </section>`;
   }).join("");
@@ -857,6 +859,14 @@ function renderOnb(){
       <h1 id="onbTitle" tabindex="-1">Was verträgst du nicht?</h1>
       <p class="lead">Wähle alles aus, was auf dich zutrifft. Feinjustieren und ändern kannst du es jederzeit im Profil.</p>
       ${GROUPS.map(grp).join("")}
+      <details class="disc onb-more"><summary>${SVG.chev}Gluten oder Weizen – was passt zu mir?</summary>
+        <ul class="steps" style="margin-top:var(--s2)">
+          <li><b>Zöliakie</b> (Autoimmunerkrankung): „Gluten“ wählen, im Profil Stufe „Zöliakie“ – streng, auch Spuren.</li>
+          <li><b>Gluten-/Weizensensitivität</b>: „Gluten“ wählen, Stufe „Sensitivität“ – die Menge macht's.</li>
+          <li><b>Weizenallergie</b> (echte Allergie): „Weizenallergie“ wählen – Roggen und Gerste gehen oft, glutenfreie Weizenstärke aber nicht.</li>
+          <li>Probleme mit Weizen<b>brot</b>, aber nicht mit Weizen<b>stärke</b>? Oft stecken Fruktane dahinter – dann „FODMAP“.</li>
+        </ul>
+        <p class="hint">Verdacht auf Zöliakie? Lass dich testen, <b>bevor</b> du Gluten weglässt – sonst ist der Test nicht mehr aussagekräftig.</p></details>
     </div>
     <div class="onb-foot"><button type="button" class="btn btn-primary btn-lg btn-block" data-onb="done"${n ? "" : ' aria-disabled="true"'}>${n ? `${onbFromProfile ? "Fertig" : "Weiter"} – ${n} ausgewählt` : "Wähle mindestens eins aus"}</button><button type="button" class="btn-link" data-onb="skip">Später einrichten</button></div></div>`;
   }
