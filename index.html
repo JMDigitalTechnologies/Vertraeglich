@@ -7,8 +7,8 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Verträglich">
 <meta name="color-scheme" content="light dark">
-<meta name="theme-color" content="#faf6f0" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#17120f" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f4f1ea" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#161814" media="(prefers-color-scheme: dark)">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-180.png">
@@ -23,29 +23,29 @@
      Primär Zimt/Terrakotta (erdig, bräunlich – klar getrennt vom kühleren, kräftigen Ampel-Rot),
      einziger Akzent Salbei (gedämpftes Kräutergrün, Gegenpol zur Wärme, sparsam eingesetzt),
      Neutraltöne Leinen/Creme mit warmem Braun als Schrift. Ampel: eigenständig und kräftiger. */
-  --bg:#faf6f0; --surface:#fffdf9; --surface-2:#f2ebe1; --surface-3:#e7ddcf;
-  --ink:#2a1f18; --ink-2:#5c4e43; --ink-3:#6b5c50;
-  --line:#e7dccd; --line-strong:#958372;
-  --brand:#9a4a2b; --brand-2:#b8613c; --on-brand:#ffffff; --brand-soft:#f6e2d6; --brand-ink:#82391e;
-  --accent:#cdd9bf; --on-accent:#22301c; --accent-soft:#e8eedf; --accent-ink:#4d6a40;
+  --bg:#f4f1ea; --surface:#fffdf8; --surface-2:#ebe7dc; --surface-3:#dfdacd;
+  --ink:#2a2b24; --ink-2:#55564b; --ink-3:#6b6c60;
+  --line:#e4e1d5; --line-strong:#8f8e80;
+  --brand:#4f6146; --brand-2:#637856; --on-brand:#fbfaf5; --brand-soft:#e3e9da; --brand-ink:#3e4f37;
+  --accent:#dfe6d3; --on-accent:#2c3a26; --accent-soft:#edf1e6; --accent-ink:#4f6146;
   /* Hero-Karte (Prüfen) */
-  --hero-1:#8a4026; --hero-2:#a9552f; --on-hero:#ffffff; --on-hero-2:rgba(255,255,255,.92);
-  --hero-line:rgba(255,255,255,.3); --hero-deco:rgba(255,255,255,.07);
-  --hero-field:#fffdf9; --hero-cta-ink:#82391e; --hero-field-ink:#2a1f18; --hero-field-ico:#6b5c50;
-  --hero-shadow:0 12px 28px rgba(110,50,25,.26);
-  --glow:rgba(184,97,60,.08);
-  --ok:#1f7a4d;   --on-ok:#ffffff;   --ok-soft:#dff0e5;   --ok-ink:#155c39;
-  --warn:#e3a01c; --on-warn:#261a04; --warn-soft:#fbefd2; --warn-ink:#7a4b05;
-  --bad:#c62a3c;  --on-bad:#ffffff;  --bad-soft:#fbe0e2;  --bad-ink:#9e1b2c;
-  --unk:#6b5c50;  --on-unk:#ffffff;
+  --hero-1:#fffdf8; --hero-2:#fffdf8; --on-hero:#2a2b24; --on-hero-2:#55564b;
+  --hero-line:#e4e1d5; --hero-deco:transparent;
+  --hero-field:#fffdf8; --hero-cta-ink:#3e4f37; --hero-field-ink:#2a2b24; --hero-field-ico:#6b6c60;
+  --hero-shadow:none;
+  --glow:transparent;
+  --ok:#2f7d55;   --on-ok:#ffffff;   --ok-soft:#e0eee5;   --ok-ink:#1f5c3c;
+  --warn:#d49a1e; --on-warn:#231803; --warn-soft:#f6ecd0; --warn-ink:#6e4c06;
+  --bad:#b8433a;  --on-bad:#ffffff;  --bad-soft:#f6e0dc;  --bad-ink:#8f2f27;
+  --unk:#6b6c60;  --on-unk:#ffffff;
   /* Ergebnis-Banner (vollflächig) – hell identisch mit den Ampel-Grundtönen */
   --v-ok:var(--ok);   --on-v-ok:var(--on-ok);
   --v-warn:var(--warn); --on-v-warn:var(--on-warn);
   --v-bad:var(--bad);  --on-v-bad:var(--on-bad);
-  --focus:#9a4a2b;
-  --scrim:rgba(30,18,10,.5);
-  --shadow-1:0 1px 2px rgba(70,40,20,.06), 0 2px 8px rgba(70,40,20,.05);
-  --shadow-2:0 10px 32px rgba(70,40,20,.18);
+  --focus:#4f6146;
+  --scrim:rgba(25,27,20,.5);
+  --shadow-1:0 1px 2px rgba(40,45,30,.06), 0 2px 8px rgba(40,45,30,.05);
+  --shadow-2:0 10px 32px rgba(40,45,30,.18);
   /* Notfall-Allergiekarte: bewusst immer „Papier“ (hell), auch im Dunkelmodus */
   --paper:#ffffff; --paper-ink:#111111; --paper-ink-2:#333333; --paper-alert:#b0202f;
   /* Typografie (Systemschrift) */
@@ -69,25 +69,25 @@
 }
 @media (prefers-color-scheme: dark){
   :root{
-    --bg:#17120f; --surface:#211a16; --surface-2:#2b231e; --surface-3:#372d26;
-    --ink:#f6eee5; --ink-2:#cdbfb1; --ink-3:#a99a8b;
-    --line:#3a2f28; --line-strong:#7d6d5f;
-    --brand:#e39a72; --brand-2:#c77a52; --on-brand:#2a130a; --brand-soft:#3f281d; --brand-ink:#f2bb9b;
-    --accent:#b5c7a5; --on-accent:#18220f; --accent-soft:#28301f; --accent-ink:#bfd1ae;
-    --hero-1:#5e2f1c; --hero-2:#7a3f25; --on-hero:#ffffff; --on-hero-2:rgba(255,255,255,.88);
-    --hero-line:rgba(255,255,255,.22); --hero-deco:rgba(255,255,255,.05);
-    --hero-field:#f3ebe1; --hero-cta-ink:#82391e; --hero-field-ink:#2a1f18; --hero-field-ico:#6b5c50;
+    --bg:#161814; --surface:#20231d; --surface-2:#2a2e26; --surface-3:#353a30;
+    --ink:#eceee4; --ink-2:#c3c6b8; --ink-3:#a3a698;
+    --line:#30342b; --line-strong:#6f7466;
+    --brand:#a9bf9b; --brand-2:#8ea67f; --on-brand:#1a2216; --brand-soft:#2b3527; --brand-ink:#bfd2b2;
+    --accent:#a9bf9b; --on-accent:#1a2216; --accent-soft:#262d22; --accent-ink:#bfd2b2;
+    --hero-1:#20231d; --hero-2:#20231d; --on-hero:#eceee4; --on-hero-2:#c3c6b8;
+    --hero-line:#30342b; --hero-deco:transparent;
+    --hero-field:#20231d; --hero-cta-ink:#bfd2b2; --hero-field-ink:#eceee4; --hero-field-ico:#a3a698;
     --hero-shadow:none;
-    --glow:rgba(227,154,114,.05);
-    --ok:#5cc08a;   --on-ok:#062213;   --ok-soft:#16301f;   --ok-ink:#86d6aa;
-    --warn:#efb54c; --on-warn:#241903; --warn-soft:#372a14; --warn-ink:#f3c977;
-    --bad:#ff7486;  --on-bad:#2e0409;  --bad-soft:#3e1a1e;  --bad-ink:#ff9dab;
-    --unk:#a99a8b;  --on-unk:#17120f;
+    --glow:transparent;
+    --ok:#6cc093;   --on-ok:#082014;   --ok-soft:#17301f;   --ok-ink:#8fd4ae;
+    --warn:#e6b84a; --on-warn:#231903; --warn-soft:#362b14; --warn-ink:#efcb78;
+    --bad:#e88577;  --on-bad:#2b0a06;  --bad-soft:#3b1f1b;  --bad-ink:#f0a69b;
+    --unk:#a3a698;  --on-unk:#161814;
     /* dunkel: große Flächen gedämpfter/tiefer statt greller Pastelltöne */
-    --v-ok:#24744a;   --on-v-ok:#ffffff;
-    --v-warn:#d8a23e; --on-v-warn:#1f1503;
-    --v-bad:#b82638;  --on-v-bad:#ffffff;
-    --focus:#f2bb9b;
+    --v-ok:#2f7a52;   --on-v-ok:#ffffff;
+    --v-warn:#cf9c32; --on-v-warn:#1f1503;
+    --v-bad:#a8433a;  --on-v-bad:#ffffff;
+    --focus:#bfd2b2;
     --scrim:rgba(0,0,0,.6);
     --shadow-1:none;
     --shadow-2:0 10px 32px rgba(0,0,0,.5);
@@ -140,7 +140,7 @@ main{max-width:var(--maxw);margin:0 auto;padding:var(--s2) var(--s4) calc(var(--
 .btn:active{transform:scale(.98)}
 .btn:disabled,.btn[aria-disabled="true"]{opacity:.45;cursor:default;transform:none}
 .btn svg{width:22px;height:22px;flex:none}
-.btn-primary{background:var(--brand);color:var(--on-brand);box-shadow:0 4px 12px color-mix(in srgb, var(--brand) 28%, transparent)}
+.btn-primary{background:var(--brand);color:var(--on-brand)}
 .btn-secondary{background:var(--brand-soft);color:var(--brand-ink)}
 .btn-outline{background:transparent;border-color:var(--line-strong);color:var(--ink)}
 .btn-quiet{background:transparent;color:var(--brand-ink);padding-left:var(--s2);padding-right:var(--s2)}
@@ -228,20 +228,10 @@ textarea.hl{box-shadow:0 0 0 3px var(--brand)}
 .empty .btn{margin-top:var(--s4)}
 
 /* Prüfen */
-.hero{position:relative;overflow:hidden;padding:var(--s5) var(--s4) var(--s3);border:0;color:var(--on-hero);background:linear-gradient(150deg, var(--hero-1) 0%, var(--hero-2) 100%);box-shadow:var(--hero-shadow)}
-.hero::after{content:"";position:absolute;right:-40px;top:-40px;width:150px;height:150px;border-radius:50%;background:var(--hero-deco);pointer-events:none}
-.hero > *{position:relative;z-index:1}
-.hero .lead{margin-bottom:var(--s4);color:var(--on-hero-2);font-weight:500}
-.hero #scanBtn{background:var(--hero-field);color:var(--hero-cta-ink);box-shadow:0 6px 18px rgba(0,0,0,.18);font-weight:750}
-.hero #scanBtn svg{color:var(--hero-cta-ink)}
-.hero .or{color:var(--on-hero-2)}
-.hero .or::before,.hero .or::after{background:var(--hero-line)}
-.hero .input{background:var(--hero-field);border-color:transparent;color:var(--hero-field-ink)}
-.hero .input::placeholder{color:var(--hero-field-ico)}
-.hero .field svg{color:var(--hero-field-ico)}
-.hero #eanBtn{background:var(--accent);color:var(--on-accent);border:0;font-weight:750}
-.hero .btn-link{color:var(--on-hero);text-decoration:underline;text-underline-offset:3px}
-.hero .feedback{color:var(--ink)}
+.hero{padding:var(--s5) var(--s4) var(--s3)}
+.hero .lead{margin-bottom:var(--s4);color:var(--ink-2)}
+.hero #scanBtn{font-weight:700;box-shadow:none}
+.hero #eanBtn{font-weight:700}
 .hero .searchrow{margin-top:var(--s3)}
 .or{display:flex;align-items:center;gap:var(--s3);color:var(--ink-2);font-size:var(--fs-sm);margin:var(--s3) 0 0}
 .or::before,.or::after{content:"";flex:1;height:1px;background:var(--line)}
@@ -690,7 +680,7 @@ details.disc[open]>summary .chev{transform:rotate(90deg)}
 
 <script>
 /* Auto-Update: bei jedem Öffnen prüfen, ob es eine neuere Version gibt, und dann neu laden */
-const APP_VERSION = 17;
+const APP_VERSION = 18;
 (function(){
   document.getElementById("ver").textContent = "Version " + APP_VERSION;
   let checking = false;
@@ -714,10 +704,10 @@ const APP_VERSION = 17;
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") checkUpdate(); });
 })();
 </script>
-<script src="config.js?v=17"></script>
-<script src="data.js?v=17"></script>
-<script src="engine.js?v=17"></script>
-<script src="app.js?v=17"></script>
-<script src="features.js?v=17"></script>
+<script src="config.js?v=18"></script>
+<script src="data.js?v=18"></script>
+<script src="engine.js?v=18"></script>
+<script src="app.js?v=18"></script>
+<script src="features.js?v=18"></script>
 </body>
 </html>
