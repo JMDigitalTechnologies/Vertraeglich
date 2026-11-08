@@ -2,7 +2,7 @@
    - App-Dateien: erst Netz (damit Updates sofort ankommen), sonst Zwischenspeicher
    - Produktdaten (Open Food Facts): erst Netz, sonst zuletzt geladene Antwort
    - Bibliotheken vom CDN (Scanner, Texterkennung): Zwischenspeicher zuerst */
-const CACHE = "vt-v6";
+const CACHE = "vt-v7";
 const SHELL = ["./", "index.html", "config.js", "data.js", "engine.js", "app.js", "features.js", "manifest.webmanifest", "icon-180.png", "icon-192.png", "icon-512.png"];
 
 self.addEventListener("install", e => {

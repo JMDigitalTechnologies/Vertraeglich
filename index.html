@@ -7,8 +7,8 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Verträglich">
 <meta name="color-scheme" content="light dark">
-<meta name="theme-color" content="#f4f6f5" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#0e1416" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#faf6f0" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#17120f" media="(prefers-color-scheme: dark)">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-180.png">
@@ -19,35 +19,35 @@
    Design-Tokens
    ========================================================= */
 :root{
-  /* Farben – hell. Palette „Petrol & Hafer“:
-     Primär Petrol (Vertrauen/Gesundheit, nicht mit Ampel-Grün verwechselbar),
-     einzige Akzentfarbe Hafer/Sand (warm, „Küche“), Neutraltöne leicht petrol-getönt,
-     Ampel (ok/warn/bad) als eigenständige, gedämpfte Töne. */
-  --bg:#f4f6f5; --surface:#ffffff; --surface-2:#e9eeee; --surface-3:#dce4e5;
-  --ink:#14232a; --ink-2:#45575e; --ink-3:#56686f;
-  --line:#dae2e3; --line-strong:#7e9096;
-  --brand:#1e5b6c; --brand-2:#2f7486; --on-brand:#ffffff; --brand-soft:#dcebee; --brand-ink:#174a59;
-  --accent:#e4c68f; --on-accent:#2b2010; --accent-soft:#f5ecdb; --accent-ink:#86581c;
+  /* Farben – hell. Palette „Zimt & Salbei“ (warme Café-Küche):
+     Primär Zimt/Terrakotta (erdig, bräunlich – klar getrennt vom kühleren, kräftigen Ampel-Rot),
+     einziger Akzent Salbei (gedämpftes Kräutergrün, Gegenpol zur Wärme, sparsam eingesetzt),
+     Neutraltöne Leinen/Creme mit warmem Braun als Schrift. Ampel: eigenständig und kräftiger. */
+  --bg:#faf6f0; --surface:#fffdf9; --surface-2:#f2ebe1; --surface-3:#e7ddcf;
+  --ink:#2a1f18; --ink-2:#5c4e43; --ink-3:#6b5c50;
+  --line:#e7dccd; --line-strong:#958372;
+  --brand:#9a4a2b; --brand-2:#b8613c; --on-brand:#ffffff; --brand-soft:#f6e2d6; --brand-ink:#82391e;
+  --accent:#cdd9bf; --on-accent:#22301c; --accent-soft:#e8eedf; --accent-ink:#4d6a40;
   /* Hero-Karte (Prüfen) */
-  --hero-1:#1b5263; --hero-2:#246a7b; --on-hero:#ffffff; --on-hero-2:rgba(255,255,255,.9);
-  --hero-line:rgba(255,255,255,.28); --hero-deco:rgba(255,255,255,.06);
-  --hero-field:#ffffff; --hero-cta-ink:#174a59; --hero-field-ink:#14232a; --hero-field-ico:#56686f;
-  --hero-shadow:0 12px 28px rgba(20,60,72,.26);
-  --glow:rgba(30,91,108,.07);
-  --ok:#2c7a45;   --on-ok:#ffffff;   --ok-soft:#e0f0e4;   --ok-ink:#1d5c32;
-  --warn:#e9a21c; --on-warn:#261a04; --warn-soft:#fbefd2; --warn-ink:#7a4b05;
-  --bad:#c23a2c;  --on-bad:#ffffff;  --bad-soft:#f9e1dc;  --bad-ink:#9c2618;
-  --unk:#5f7178;  --on-unk:#ffffff;
+  --hero-1:#8a4026; --hero-2:#a9552f; --on-hero:#ffffff; --on-hero-2:rgba(255,255,255,.92);
+  --hero-line:rgba(255,255,255,.3); --hero-deco:rgba(255,255,255,.07);
+  --hero-field:#fffdf9; --hero-cta-ink:#82391e; --hero-field-ink:#2a1f18; --hero-field-ico:#6b5c50;
+  --hero-shadow:0 12px 28px rgba(110,50,25,.26);
+  --glow:rgba(184,97,60,.08);
+  --ok:#1f7a4d;   --on-ok:#ffffff;   --ok-soft:#dff0e5;   --ok-ink:#155c39;
+  --warn:#e3a01c; --on-warn:#261a04; --warn-soft:#fbefd2; --warn-ink:#7a4b05;
+  --bad:#c62a3c;  --on-bad:#ffffff;  --bad-soft:#fbe0e2;  --bad-ink:#9e1b2c;
+  --unk:#6b5c50;  --on-unk:#ffffff;
   /* Ergebnis-Banner (vollflächig) – hell identisch mit den Ampel-Grundtönen */
   --v-ok:var(--ok);   --on-v-ok:var(--on-ok);
   --v-warn:var(--warn); --on-v-warn:var(--on-warn);
   --v-bad:var(--bad);  --on-v-bad:var(--on-bad);
-  --focus:#1e5b6c;
-  --scrim:rgba(10,24,30,.5);
-  --shadow-1:0 1px 2px rgba(20,45,55,.06), 0 2px 8px rgba(20,45,55,.05);
-  --shadow-2:0 10px 32px rgba(20,45,55,.18);
+  --focus:#9a4a2b;
+  --scrim:rgba(30,18,10,.5);
+  --shadow-1:0 1px 2px rgba(70,40,20,.06), 0 2px 8px rgba(70,40,20,.05);
+  --shadow-2:0 10px 32px rgba(70,40,20,.18);
   /* Notfall-Allergiekarte: bewusst immer „Papier“ (hell), auch im Dunkelmodus */
-  --paper:#ffffff; --paper-ink:#111111; --paper-ink-2:#333333; --paper-alert:#b42318;
+  --paper:#ffffff; --paper-ink:#111111; --paper-ink-2:#333333; --paper-alert:#b0202f;
   /* Typografie (Systemschrift) */
   --font:-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --fs-xs:.75rem;   /* 12 */
@@ -69,25 +69,25 @@
 }
 @media (prefers-color-scheme: dark){
   :root{
-    --bg:#0e1416; --surface:#162023; --surface-2:#1f2a2e; --surface-3:#29363b;
-    --ink:#ecf2f3; --ink-2:#b0bfc3; --ink-3:#8d9fa4;
-    --line:#2a373b; --line-strong:#66797f;
-    --brand:#7ec6d4; --brand-2:#4f9fb0; --on-brand:#05222a; --brand-soft:#18373f; --brand-ink:#9fd7e2;
-    --accent:#dfc28c; --on-accent:#2b2010; --accent-soft:#2e271b; --accent-ink:#e6cc9b;
-    --hero-1:#163f4b; --hero-2:#1d5161; --on-hero:#ffffff; --on-hero-2:rgba(255,255,255,.88);
+    --bg:#17120f; --surface:#211a16; --surface-2:#2b231e; --surface-3:#372d26;
+    --ink:#f6eee5; --ink-2:#cdbfb1; --ink-3:#a99a8b;
+    --line:#3a2f28; --line-strong:#7d6d5f;
+    --brand:#e39a72; --brand-2:#c77a52; --on-brand:#2a130a; --brand-soft:#3f281d; --brand-ink:#f2bb9b;
+    --accent:#b5c7a5; --on-accent:#18220f; --accent-soft:#28301f; --accent-ink:#bfd1ae;
+    --hero-1:#5e2f1c; --hero-2:#7a3f25; --on-hero:#ffffff; --on-hero-2:rgba(255,255,255,.88);
     --hero-line:rgba(255,255,255,.22); --hero-deco:rgba(255,255,255,.05);
-    --hero-field:#e9f0f1; --hero-cta-ink:#174a59; --hero-field-ink:#14232a; --hero-field-ico:#56686f;
+    --hero-field:#f3ebe1; --hero-cta-ink:#82391e; --hero-field-ink:#2a1f18; --hero-field-ico:#6b5c50;
     --hero-shadow:none;
-    --glow:transparent;
-    --ok:#5bbb7a;   --on-ok:#07210f;   --ok-soft:#173024;   --ok-ink:#86d39f;
-    --warn:#efb54c; --on-warn:#241903; --warn-soft:#352a14; --warn-ink:#f3c977;
-    --bad:#f27d6e;  --on-bad:#2c0804;  --bad-soft:#3a1d1a;  --bad-ink:#ff9f92;
-    --unk:#8d9fa4;  --on-unk:#0e1416;
+    --glow:rgba(227,154,114,.05);
+    --ok:#5cc08a;   --on-ok:#062213;   --ok-soft:#16301f;   --ok-ink:#86d6aa;
+    --warn:#efb54c; --on-warn:#241903; --warn-soft:#372a14; --warn-ink:#f3c977;
+    --bad:#ff7486;  --on-bad:#2e0409;  --bad-soft:#3e1a1e;  --bad-ink:#ff9dab;
+    --unk:#a99a8b;  --on-unk:#17120f;
     /* dunkel: große Flächen gedämpfter/tiefer statt greller Pastelltöne */
-    --v-ok:#2b7445;   --on-v-ok:#ffffff;
+    --v-ok:#24744a;   --on-v-ok:#ffffff;
     --v-warn:#d8a23e; --on-v-warn:#1f1503;
-    --v-bad:#b23a2e;  --on-v-bad:#ffffff;
-    --focus:#9fd7e2;
+    --v-bad:#b82638;  --on-v-bad:#ffffff;
+    --focus:#f2bb9b;
     --scrim:rgba(0,0,0,.6);
     --shadow-1:none;
     --shadow-2:0 10px 32px rgba(0,0,0,.5);
@@ -690,7 +690,7 @@ details.disc[open]>summary .chev{transform:rotate(90deg)}
 
 <script>
 /* Auto-Update: bei jedem Öffnen prüfen, ob es eine neuere Version gibt, und dann neu laden */
-const APP_VERSION = 16;
+const APP_VERSION = 17;
 (function(){
   document.getElementById("ver").textContent = "Version " + APP_VERSION;
   let checking = false;
@@ -714,10 +714,10 @@ const APP_VERSION = 16;
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") checkUpdate(); });
 })();
 </script>
-<script src="config.js?v=16"></script>
-<script src="data.js?v=16"></script>
-<script src="engine.js?v=16"></script>
-<script src="app.js?v=16"></script>
-<script src="features.js?v=16"></script>
+<script src="config.js?v=17"></script>
+<script src="data.js?v=17"></script>
+<script src="engine.js?v=17"></script>
+<script src="app.js?v=17"></script>
+<script src="features.js?v=17"></script>
 </body>
 </html>
