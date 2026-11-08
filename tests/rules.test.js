@@ -96,5 +96,14 @@ for (const [txt, spec, want] of CASES){
 }
 /* Rezepte: jede Zutat muss sich auswerten lassen */
 for (const r of E.RECIPES){ const items = E.recipeRaw(r).items; if (items.some(i => !i.n)){ fail++; console.log("✕ Rezept mit leerer Zutat: " + r.t); } }
+/* Rezepte: was in der Zubereitung verwendet wird, steht auch in der Zutatenliste */
+const norm = s => String(s||"").toLowerCase().replace(/ä/g,"ae").replace(/ö/g,"oe").replace(/ü/g,"ue").replace(/ß/g,"ss");
+const STEP_WORDS = ["salz","pfeffer","oel","wasser","zucker","zitronensaft","limettensaft","essig","butter","milch","haferdrink","hafermilch","reismilch","sahne","kraeuter","petersilie","schnittlauch","dill","basilikum","koriander","minze","rosmarin","zimt","muskat","kurkuma","ingwer","honig","ahornsirup","mehl","staerke","backpulver","sesam","kokosmilch","kokosdrink","knoblauch","zwiebel","ei","eier","frischkaese","joghurt","quark","parmesan","feta","mozzarella","kaese","pilze","champignons","fisch","tomaten","wein"];
+const stemW = w => w.replace(/(en|n|e|er|s)$/, "");
+for (const r of E.RECIPES){
+  const zt = norm(r.z.join(" | ")), st = norm(r.s.join(" "));
+  const miss = STEP_WORDS.filter(w => new RegExp("(^|[^a-z])" + w + "([^a-z]|$)").test(st) && !zt.includes(stemW(w)));
+  if (miss.length){ fail++; console.log("✕ Rezept „" + r.t + "“: in der Zubereitung, aber nicht in den Zutaten: " + miss.join(", ")); }
+}
 console.log(fail ? `\n${fail} von ${CASES.length} Tests fehlgeschlagen` : `✓ Alle ${CASES.length} Regeltests bestanden, ${E.RECIPES.length} Rezepte geprüft`);
 process.exit(fail ? 1 : 0);

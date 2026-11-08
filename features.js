@@ -875,6 +875,32 @@ function swapFor(name, cats){
   }
   return null;
 }
+/* Kernwort einer Zutat (z. B. „birne“), an dem der Austausch hängt */
+function swapCore(name){
+  const n = norm(name);
+  for (const s of SUBS){ const m = n.match(s.re); if (!m) continue;
+    const w = (m[0].match(/[a-z]+/g) || []).sort((a, b) => b.length - a.length)[0] || "";
+    return w.replace(/(en|e|s)$/, "");
+  }
+  return "";
+}
+function swapRe(name){ const n = norm(name); const s = SUBS.find(x => x.re.test(n)); return s ? s.re : null; }
+/* „Variante“ = gleiche Zutat in verträglicher Form (laktosefreie Milch, Haferflocken glutenfrei …) */
+const isVariant = (to, core) => /glutenfrei|laktosefrei|variante/.test(norm(to)) || (core && norm(to).includes(core));
+const fold = s => norm(s).replace(/ae/g, "a").replace(/oe/g, "o").replace(/ue/g, "u");
+const TITLE_STOP = new Set(["mit","und","aus","dem","der","ohne","selbst","gemacht","glutenfrei","mild","ofen","bowl","salat","suppe","pfanne"]);
+/* Hängt der Rezeptname an dieser Zutat – und fehlt sie nach dem Austausch? */
+function titleBreaks(title, from, label, core){
+  const fr = fold(from), lb = fold(label), c = fold(core), re = swapRe(from);
+  /* Kernzutaten, die ein Gericht ausmachen, auch wenn sie nicht im Namen stehen */
+  const must = (RECIPE_CORE[title] || []);
+  if (must.some(m => norm(from).includes(m)) && !must.some(m => norm(label).includes(m))) return true;
+  const fw = fr.match(/[a-z]{4,}/g) || [];
+  return (fold(title).match(/[a-z]{4,}/g) || []).filter(w => !TITLE_STOP.has(w)).some(w => {
+    const rel = fr.includes(w) || (re && re.test(w)) || (c.length >= 4 && w.includes(c)) || fw.some(x => { let i = 0; while (i < x.length && x[i] === w[i]) i++; return i >= 5; });
+    return rel && !lb.includes(w);
+  });
+}
 function adaptRecipe(r, ev){
   const swaps = [];
   const items = recipeRaw(r).items.map((it, k) => {
@@ -882,12 +908,52 @@ function adaptRecipe(r, ev){
     if (!bad.length && i.mine !== "bad") return it;
     const to = swapFor(it.n, bad.length ? bad : []);
     if (!to) { swaps.push(null); return it; }
-    swaps.push({k, from: it.n.replace(/\s*\([^)]*\)/g, ""), to});
-    return /^weglassen/i.test(to) ? {n:"", s:it.s} : {n: to.split(" / ")[0].split(" oder ")[0], s: it.s};
+    const core = swapCore(it.n);
+    const sw = {k, from: it.n.replace(/\s*\([^)]*\)/g, ""), to, core, variant: isVariant(to, core), drop: /^weglassen/i.test(to)};
+    /* Zutat steckt im Rezeptnamen → kein „Birnen-Porridge ohne Birne“ */
+    if (titleBreaks(r.t, it.n, sw.drop ? "" : swapLabel(sw, r.z[k]), core)) { swaps.push(null); return it; }
+    swaps.push(sw);
+    return sw.drop ? {n:"", s:it.s} : {n: to.split(" / ")[0].split(" oder ")[0], s: it.s};
   });
   if (!swaps.length || swaps.includes(null)) return null;
   const ev2 = evaluate({mode:"recipe", items: items.filter(x => x.n)}, P());
   return ev2.total === 0 ? {swaps} : null;
+}
+/* Angepasste Zutat, wie sie in der Liste steht */
+function swapLabel(sw, z){
+  const base = z.replace(/^~\s*/, "");
+  if (/^glutenfreie Variante/i.test(sw.to)) return base.replace(/\s*\((weizen|dinkel)[^)]*\)/i, "").replace(/(Weizen|Dinkel)-?\s*/g, "").replace(/(^|\s)([a-zäöü])(?=[a-zäöü]{3,})/, (m, p, c) => p + c.toUpperCase()) + " (glutenfrei" + (/weizenst/i.test(sw.to) ? ", ohne Weizenstärke" : "") + ")";
+  const amt = (base.match(AMOUNT_RE) || [""])[0];
+  if (sw.variant) return amt + sw.to;
+  /* Gewichts-/Volumenangaben lassen sich übernehmen, Stückzahlen nicht */
+  return (/^[\d.,½¼¾\s–-]+(g|kg|ml|l)\s/i.test(amt) && !/\s(oder|und)\s|,/.test(sw.to) ? amt : "") + sw.to;
+}
+/* Kurzform für den Fließtext der Zubereitung */
+function swapShort(to){
+  if (/\S-\s+oder\s/.test(to)) return to.split(" / ")[0];
+  return to.split(" / ")[0].split(" oder ")[0].replace(/\s*\(.*$/, "").replace(/frische Kräuter$/, "frischen Kräutern");
+}
+/* Zubereitung an den Austausch anpassen */
+function adaptSteps(steps, swaps){
+  return steps.map(s0 => {
+    let s = esc(s0);
+    for (const sw of swaps){
+      if (!sw.core || (!sw.drop && (/^glutenfreie Variante/i.test(sw.to) || norm(sw.to).includes(sw.core)))) continue;
+      const re = new RegExp("[A-Za-zÄÖÜäöüß-]+", "g");
+      const hit = w => norm(w).includes(sw.core) || (w.length >= 4 && sw.core.endsWith(norm(w)));
+      if (sw.drop){
+        s = s.replace(/(,\s*|\s+und\s+)([A-Za-zÄÖÜäöüß-]+)/g, (m, sep, w) => hit(w) ? "" : m)
+             .replace(/([A-Za-zÄÖÜäöüß-]+)(,\s*|\s+und\s+)/g, (m, w) => hit(w) ? "" : m)
+             .replace(/\b[Mm]it\s+([A-Za-zÄÖÜäöüß-]+)\s+(belegen|bestreuen|servieren)/g, (m, w, v) => hit(w) ? "" : m);
+        s = s.replace(re, w => hit(w) ? `<s>${w}</s>` : w).replace(/\s{2,}/g, " ").replace(/\s+\./g, ".").replace(/\.\s*,/g, ".").trim();
+        if (/^[a-zäöü]/.test(s)) s = s[0].toUpperCase() + s.slice(1);
+      } else {
+        const short = esc(swapShort(sw.to));
+        s = s.replace(re, w => hit(w) ? `<b>${short}</b>` : w);
+      }
+    }
+    return s;
+  }).filter(s => s.replace(/<[^>]+>/g, "").trim().length > 1);
 }
 function subsHtml(name, lv, cats){
   const bad = cats.filter(c => lv[c] > 0); if (!bad.length) return "";

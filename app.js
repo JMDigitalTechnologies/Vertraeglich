@@ -697,12 +697,12 @@ function recipeCard(x, open){
   const {r, i, ev, kind, ad} = x;
   const swapMap = ad ? Object.fromEntries(ad.swaps.map(s => [s.k, s])) : {};
   const zl = r.z.map((z, k) => { const it = ev.items[k]; const lv = Math.max(0, ...ev.cats.map(c => it.lvl[c])); const sw = swapMap[k];
-    return `<li>${sw ? `<s>${esc(z.replace(/^~\s*/, ""))}</s> → <b>${esc(sw.to)}</b>` : esc(z.replace(/^~\s*/, ""))}${lv && !sw ? `<span class="rflag">${ev.cats.filter(c => it.lvl[c] > 0).map(c => badge(c, it.lvl[c])).join("")}</span>` : ""}</li>`; }).join("");
+    return `<li>${sw ? (sw.drop ? `<s>${esc(z.replace(/^~\s*/, ""))}</s> <span class="swap-note">weglassen</span>` : `<b>${esc(swapLabel(sw, z))}</b>${sw.variant && (norm(sw.to).includes(sw.core) || /^glutenfreie/i.test(sw.to)) ? "" : ` <span class="swap-note">statt ${esc(sw.from.replace(AMOUNT_RE, ""))}</span>`}`) : esc(z.replace(/^~\s*/, ""))}${lv && !sw ? `<span class="rflag">${ev.cats.filter(c => it.lvl[c] > 0).map(c => badge(c, it.lvl[c])).join("")}</span>` : ""}</li>`; }).join("");
   const last = recipeEntry[i] && history.find(h => h.id === recipeEntry[i]);
   const lv = kind === "fit" ? 0 : kind === "adapt" ? 0 : ev.total;
-  return `<article class="card recipe"><div class="recipe-hd">${st(lv)}<span class="sr-only">${kind === "adapt" ? "passt mit Austausch" : LABEL[lv]}:</span><div style="flex:1;min-width:0"><h3>${esc(r.t)}</h3><p class="meta">${r.m.map(m => MEALS[m]).join(" · ")} · ${r.min} Min.${kind === "adapt" ? ` · <span class="tag-rec">mit Austausch</span>` : ""}</p></div></div>
-    ${kind === "adapt" ? `<p class="reason">Passt, wenn du austauschst: ${esc(ad.swaps.map(s => s.from + " → " + s.to).join(", "))}</p>` : ev.total ? `<p class="reason">${esc(reasonText(ev))}</p>` : ""}
-    <details class="disc" data-i="${i}"${open.has(String(i)) ? " open" : ""}><summary>${SVG.chev}Zutaten &amp; Zubereitung</summary><h4>Zutaten</h4><ul>${zl}</ul><h4>Zubereitung</h4><ol>${r.s.map(s => `<li>${esc(s)}</li>`).join("")}</ol>
+  return `<article class="card recipe"><div class="recipe-hd">${st(lv)}<span class="sr-only">${kind === "adapt" ? "für dich angepasst" : LABEL[lv]}:</span><div style="flex:1;min-width:0"><h3>${esc(r.t)}</h3><p class="meta">${r.m.map(m => MEALS[m]).join(" · ")} · ${r.min} Min.${kind === "adapt" ? ` · <span class="tag-rec">angepasst</span>` : ""}</p></div></div>
+    ${kind === "adapt" ? `<p class="reason">Für dich angepasst: ${esc(ad.swaps.map(s => s.drop ? s.from.replace(AMOUNT_RE, "") + " weglassen" : s.variant ? swapLabel(s, s.from).replace(AMOUNT_RE, "") : s.to + " statt " + s.from.replace(AMOUNT_RE, "")).join(", "))}</p>` : ev.total ? `<p class="reason">${esc(reasonText(ev))}</p>` : ""}
+    <details class="disc" data-i="${i}"${open.has(String(i)) ? " open" : ""}><summary>${SVG.chev}Zutaten &amp; Zubereitung</summary><h4>Zutaten</h4><ul>${zl}</ul><h4>Zubereitung</h4><ol>${(ad ? adaptSteps(r.s, ad.swaps) : r.s.map(esc)).map(s => `<li>${s}</li>`).join("")}</ol>
     ${F("lists") ? `<button type="button" class="btn btn-sm btn-outline" data-shop-r="${i}" style="margin-top:var(--s2)">${SVG.cart}Zutaten auf die Einkaufsliste</button>` : ""}
     <h4>Nachgekocht? Wie hast du es vertragen?</h4>
     ${reactHtml(last || null, k => `data-rr="${k}" data-ri="${i}"`)}</details></article>`;
@@ -734,7 +734,7 @@ function renderRecipes(){
 $("#recipeList").addEventListener("click", ev => {
   if (ev.target.closest("[data-reshuffle]")){ recipeShuffle++; renderRecipes(); return; }
   const sh = ev.target.closest("[data-shop-r]");
-  if (sh){ const rr = RECIPES[+sh.dataset.shopR], st0 = recipeStatus(rr), sw = st0.ad ? Object.fromEntries(st0.ad.swaps.map(x => [x.k, x.to])) : {};
+  if (sh){ const rr = RECIPES[+sh.dataset.shopR], st0 = recipeStatus(rr), sw = st0.ad ? Object.fromEntries(st0.ad.swaps.map(x => [x.k, x.drop ? "weglassen" : recipeItem(swapLabel(x, rr.z[x.k])).n])) : {};
     const n = addShop(rr.z.map((z, k) => sw[k] || recipeItem(z).n).filter(x => !/^(salz|pfeffer|wasser|weglassen)/i.test(x))); toast(n ? n + " Zutaten auf die Einkaufsliste gesetzt" : "Steht schon alles auf der Liste"); renderShell(); return; }
   const b = ev.target.closest("[data-rr]"); if (!b) return;
   const i = +b.dataset.ri, r = RECIPES[i];

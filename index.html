@@ -469,6 +469,7 @@ details.disc[open]>summary .chev{transform:rotate(90deg)}
 .prog-steps i.on{background:var(--brand)}
 .prog-head .prog-steps{margin-bottom:var(--s2)}
 .prog-head .prog-steps i{width:28px;height:6px}
+.swap-note{font-size:var(--fs-sm);color:var(--ink-2);font-weight:400}
 .tag-rec{display:inline-block;font-size:11px;font-weight:700;color:var(--accent-ink);background:var(--accent-soft);border-radius:999px;padding:1px 8px;margin-left:4px;vertical-align:2px}
 .onb-feat{margin-top:var(--s3)}
 .sym-row{display:flex;flex-direction:column;gap:6px;padding:var(--s2) 0;border-top:1px solid var(--line)}
@@ -708,7 +709,7 @@ details.disc[open]>summary .chev{transform:rotate(90deg)}
 
 <script>
 /* Auto-Update: bei jedem Öffnen prüfen, ob es eine neuere Version gibt, und dann neu laden */
-const APP_VERSION = 19;
+const APP_VERSION = 20;
 (function(){
   document.getElementById("ver").textContent = "Version " + APP_VERSION;
   let checking = false;
@@ -732,10 +733,10 @@ const APP_VERSION = 19;
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") checkUpdate(); });
 })();
 </script>
-<script src="config.js?v=19"></script>
-<script src="data.js?v=19"></script>
-<script src="engine.js?v=19"></script>
-<script src="app.js?v=19"></script>
-<script src="features.js?v=19"></script>
+<script src="config.js?v=20"></script>
+<script src="data.js?v=20"></script>
+<script src="engine.js?v=20"></script>
+<script src="app.js?v=20"></script>
+<script src="features.js?v=20"></script>
 </body>
 </html>
