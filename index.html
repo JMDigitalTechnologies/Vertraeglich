@@ -454,6 +454,18 @@ details.disc[open]>summary .chev{transform:rotate(90deg)}
 #analysisTools .quick .btn{justify-content:center;min-height:48px;padding-left:var(--s2);padding-right:var(--s2);font-size:var(--fs-sm,14px)}
 #analysisTools .quick .btn:first-child{grid-column:1 / -1}
 .onb-more{margin-top:var(--s3)}
+.onb-choices{display:flex;flex-direction:column;gap:var(--s2);margin-top:var(--s5)}
+.onb-choice{display:flex;align-items:center;gap:var(--s3);width:100%;min-height:64px;padding:var(--s3) var(--s4);border:1.5px solid var(--line);border-radius:var(--r-lg);background:var(--surface);color:var(--ink);text-align:left;font:inherit;transition:border-color .15s, background-color .15s}
+.onb-choice .ico{display:grid;place-items:center;flex:none;width:40px;height:40px;border-radius:var(--r-md);background:var(--brand-soft);color:var(--brand-ink)}
+.onb-choice .ico svg{width:22px;height:22px}
+.onb-choice .txt{flex:1;min-width:0}
+.onb-choice .txt b{display:block;font-size:var(--fs-base);font-weight:650}
+.onb-choice .txt small{display:block;color:var(--ink-2);font-size:var(--fs-sm);margin-top:2px}
+.onb-choice .tick{flex:none;display:grid;place-items:center;width:24px;height:24px;border-radius:50%;border:1.5px solid var(--line-strong);color:transparent}
+.onb-choice .tick svg{width:14px;height:14px}
+.onb-choice[aria-checked="true"],.onb-choice[aria-pressed="true"]{border-color:var(--brand);background:color-mix(in srgb, var(--brand) 7%, var(--surface))}
+.onb-choice[aria-checked="true"] .tick,.onb-choice[aria-pressed="true"] .tick{background:var(--brand);border-color:var(--brand);color:var(--on-brand)}
+.onb-later{color:var(--ink-2)}
 .quick .btn svg{width:18px;height:18px}
 .tools-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:var(--s2);margin-bottom:var(--s4)}
 .tool{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;min-height:76px;padding:var(--s2);border-radius:var(--r-md,14px);border:1px solid var(--line);background:var(--surface);color:var(--ink);font:inherit;font-size:var(--fs-sm,14px);font-weight:600;cursor:pointer}
@@ -726,7 +738,7 @@ details.disc[open]>summary .chev{transform:rotate(90deg)}
 
 <script>
 /* Auto-Update: bei jedem Öffnen prüfen, ob es eine neuere Version gibt, und dann neu laden */
-const APP_VERSION = 23;
+const APP_VERSION = 24;
 (function(){
   document.getElementById("ver").textContent = "Version " + APP_VERSION;
   let checking = false;
@@ -750,10 +762,10 @@ const APP_VERSION = 23;
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") checkUpdate(); });
 })();
 </script>
-<script src="config.js?v=23"></script>
-<script src="data.js?v=23"></script>
-<script src="engine.js?v=23"></script>
-<script src="app.js?v=23"></script>
-<script src="features.js?v=23"></script>
+<script src="config.js?v=24"></script>
+<script src="data.js?v=24"></script>
+<script src="engine.js?v=24"></script>
+<script src="app.js?v=24"></script>
+<script src="features.js?v=24"></script>
 </body>
 </html>

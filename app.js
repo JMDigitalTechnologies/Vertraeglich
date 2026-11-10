@@ -903,100 +903,205 @@ function renderSub(){
 }
 $("#profPill").addEventListener("click", () => { if (F("family") && people.list.length > 1) openPeopleSheet(); else goView("prof"); });
 
-/* ---------- Onboarding ---------- */
-let onbStep = 1, onbSel = new Set(), onbFeat = new Set(), onbFromProfile = false;
+/* ---------- Onboarding: ein paar einfache Fragen – daraus stellt sich die App zusammen ---------- */
+let onb = null, onbFromProfile = false, onbSel = new Set(), onbFeat = new Set();
+const OI = p => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${p}</svg>`;
+const ONB_ICO = {
+  me: OI('<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/>'),
+  other: OI('<path d="M12 21s-7-4.5-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 11c0 5.5-7 10-7 10z"/>'),
+  family: OI('<circle cx="9" cy="8" r="3.5"/><circle cx="17" cy="9" r="2.5"/><path d="M2.5 20c0-3.5 3-5.5 6.5-5.5s6.5 2 6.5 5.5M15.5 14.5c3 0 6 1.5 6 4.5"/>'),
+  known: OI('<path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/>'),
+  suspect: OI('<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>'),
+  unknown: OI('<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .8-1 1.5V14M12 17h.01"/>'),
+  shop: OI('<path d="M3 4h2l2.5 11h11L21 7H6.5"/><circle cx="9" cy="19.5" r="1.3"/><circle cx="17" cy="19.5" r="1.3"/>'),
+  cook: OI('<path d="M3 11h18a9 9 0 0 1-18 0zM9 7c0-1.5 1-2 1-3.5M13 7c0-1.5 1-2 1-3.5"/>'),
+  out: OI('<path d="M7 3v8a2 2 0 0 0 2 2v8M5 3v5M9 3v5M17 3c-2 1.5-2.5 4-2.5 7h2.5v11"/>'),
+  find: OI('<path d="M4 19V5M4 19h16M8 15l3-4 3 2 5-6"/>'),
+  program: OI('<path d="M4 6h4M4 12h8M4 18h12M18 4l2 2-4 4"/>'),
+  doctor: OI('<path d="M6 3h9l3 3v15H6z"/><path d="M12 10v6M9 13h6"/>'),
+  yes: OI('<path d="M5 12l4 4 10-10"/>'), no: OI('<path d="M6 6l12 12M18 6 6 18"/>')
+};
+const ONB_GOALS = [
+  {k:"shop",    n:"Beim Einkaufen prüfen",            d:"Produkte scannen, Sicheres merken, Einkaufsliste",                f:["lists","alternatives"]},
+  {k:"cook",    n:"Kochen und Rezepte",               d:"Passende Rezepte und eine Lebensmittel-Liste zum Nachschlagen",   f:["recipes","foods"]},
+  {k:"out",     n:"Auswärts essen",                   d:"Speisekarte und Teller per Foto prüfen, Allergiekarte",           f:["menu","dish","card"]},
+  {k:"find",    n:"Herausfinden, was nicht guttut",   d:"Tagebuch mit Beschwerden – die App erkennt Muster",               f:["diary","symptoms"]},
+  {k:"program", n:"Schritt für Schritt austesten",    d:"Ernährungsprogramm mit Weglass- und Testphase",                   f:["program","diary"]},
+  {k:"doctor",  n:"Mit Ärztin oder Arzt besprechen",  d:"Bericht aus Tagebuch und Auswertung zum Teilen",                  f:["report","diary"]}
+];
+const onbAllergy = () => [...onbSel].some(c => CAT[c] && CAT[c].grp === "all");
+const onbOther = () => onb && onb.who === "other";
+const onbName = () => (onb && onb.name.trim()) || "die Person";
+function onbSteps(){
+  if (onbFromProfile) return ["cats"];
+  const s = ["welcome", "who", "status"];
+  if (onb.status !== "unknown") s.push("cats");
+  if (onbAllergy()) s.push("pen");
+  return s.concat(["goals", "summary"]);
+}
+function onbDefaultGoals(){
+  const g = new Set(onb.status === "unknown" ? ["find", "cook"] : onb.status === "suspect" ? ["shop", "find"] : ["shop", "cook"]);
+  if (onbAllergy() || onbSel.has("g")) g.add("out");
+  if (onb.status === "suspect" && [...onbSel].some(c => ["h","o","f","s"].includes(c))) g.add("program");
+  return g;
+}
+function onbFeatures(){
+  const f = new Set(["foods", "diary"]);
+  for (const G of ONB_GOALS) if (onb.goals.has(G.k)) G.f.forEach(k => f.add(k));
+  if (onb.status !== "known"){ f.add("diary"); f.add("symptoms"); }
+  if (onbAllergy()) f.add("card");
+  if (onb.pen === "yes"){ f.add("emergency"); f.add("card"); }
+  if (onb.who === "family") f.add("family");
+  return new Set([...f].filter(k => FEAT[k]));
+}
 function showOnb(fromProfile){
   onbFromProfile = !!fromProfile;
   onbSel = new Set(fromProfile ? activeCats() : []);
-  onbStep = 1; renderOnb(); $("#onb").hidden = false; document.body.classList.add("lock");
+  onb = {step: 0, who: null, name: "", status: fromProfile ? "known" : null, pen: null, goals: null, featTouched: false};
+  renderOnb(); $("#onb").hidden = false; document.body.classList.add("lock");
 }
 function closeOnb(){ $("#onb").hidden = true; document.body.classList.remove("lock"); }
+const onbChoice = (q, v, title, sub, cur) => `<button type="button" class="onb-choice" role="radio" aria-checked="${cur === v}" data-q="${q}" data-v="${v}"><span class="ico">${ONB_ICO[v] || ""}</span><span class="txt"><b>${title}</b>${sub ? `<small>${sub}</small>` : ""}</span><span class="tick">${SVG.check}</span></button>`;
 function renderOnb(){
-  const o = $("#onb");
-  const dots = `<div class="onb-steps" aria-label="Schritt ${onbStep} von 3"><i class="on"></i><i class="${onbStep >= 2 ? "on" : ""}"></i><i class="${onbStep === 3 ? "on" : ""}"></i></div>`;
-  if (onbStep === 1){
-    o.innerHTML = `<div class="onb-in"><div class="onb-body">
-      <img class="logo" src="icon-192.png" alt="">
+  const o = $("#onb"), steps = onbSteps(), st = steps[onb.step], last = onb.step === steps.length - 1;
+  const n = steps.length - 1, k = onb.step;
+  const dots = onbFromProfile || st === "welcome" ? "" : `<div class="onb-steps" aria-label="Frage ${k} von ${n - 1}">${steps.slice(1, -1).map((s, i) => `<i class="${i < k ? "on" : ""}"></i>`).join("")}</div>`;
+  const back = k > 0 ? `<button type="button" class="btn-link" data-onb="back">Zurück</button>` : "";
+  let body = "", next = "", nextOk = true;
+  if (st === "welcome"){
+    body = `<img class="logo" src="icon-192.png" alt="">
       <h1 id="onbTitle" tabindex="-1">Willkommen bei Verträglich</h1>
-      <p class="lead">Scanne Lebensmittel und sieh sofort, ob sie zu dir passen – bei Unverträglichkeiten und Allergien.</p>
+      <p class="lead">Scanne Lebensmittel und sieh sofort, ob sie passen – bei Unverträglichkeiten und Allergien.</p>
       <ul class="feat">
-        <li><span class="ico">${SVG.scan}</span><span><b>Prüfen in Sekunden</b><span>Barcode scannen oder Zutatenliste fotografieren – mit Ampel und Begründung.</span></span></li>
+        <li><span class="ico">${SVG.scan}</span><span><b>Prüfen in Sekunden</b><span>Barcode, Zutatenliste oder Teller fotografieren – mit Ampel und Begründung.</span></span></li>
         <li><span class="ico">${SVG.bowl}</span><span><b>Passende Rezepte</b><span>Nur Gerichte, die zu deinem Profil passen.</span></span></li>
-        <li><span class="ico">${SVG.chart}</span><span><b>Tagebuch mit Analyse</b><span>Erkennt Muster in dem, was du schlecht verträgst.</span></span></li>
+        <li><span class="ico">${SVG.chart}</span><span><b>Tagebuch mit Analyse</b><span>Findet heraus, was dir nicht guttut.</span></span></li>
       </ul>
-      <p class="hint" style="margin-top:var(--s5)">Deine Daten bleiben nur auf diesem Gerät.</p>
-    </div>
-    <div class="onb-foot"><button type="button" class="btn btn-primary btn-lg btn-block" data-onb="next">Los geht’s</button><button type="button" class="btn-link" data-onb="skip">Überspringen</button></div></div>`;
-  } else if (onbStep === 3){
-    const rec = recommendFeatures([...onbSel]);
-    o.innerHTML = `<div class="onb-in"><div class="onb-body">${dots}
-      <h1 id="onbTitle" tabindex="-1">Was möchtest du nutzen?</h1>
-      <p class="lead">Wir haben passend zu deiner Auswahl etwas vorgeschlagen. Die App zeigt nur, was du einschaltest – ändern kannst du das jederzeit im Profil unter „Funktionen“.</p>
-      <h2>Empfohlen für dich</h2>
-      <ul class="cat-list onb-feat">${featureListHtml(onbFeat, null, f => rec.has(f.k))}</ul>
-      <details class="disc onb-more"><summary>${SVG.chev}Weitere Funktionen (${FEATURES.filter(f => !rec.has(f.k)).length})</summary>
-        <ul class="cat-list onb-feat">${featureListHtml(onbFeat, null, f => !rec.has(f.k))}</ul></details>
-    </div>
-    <div class="onb-foot"><button type="button" class="btn btn-primary btn-lg btn-block" data-onb="finish">Fertig – los geht’s</button><button type="button" class="btn-link" data-onb="back">Zurück</button></div></div>`;
-  } else {
+      <p class="hint" style="margin-top:var(--s5)">Ein paar kurze Fragen, dann stellt sich die App für dich zusammen. Deine Daten bleiben nur auf diesem Gerät.</p>`;
+    next = "Los geht’s";
+  } else if (st === "who"){
+    body = `<h1 id="onbTitle" tabindex="-1">Für wen richtest du die App ein?</h1>
+      <div class="onb-choices" role="radiogroup" aria-label="Für wen">
+        ${onbChoice("who", "me", "Für mich", "", onb.who)}
+        ${onbChoice("who", "other", "Für jemand anderen", "Zum Beispiel für dein Kind", onb.who)}
+        ${onbChoice("who", "family", "Für mehrere Personen", "Familie oder Partner – jede Person bekommt ein eigenes Profil", onb.who)}
+      </div>
+      ${onb.who === "other" ? `<label class="label" for="onbName">Wie heißt die Person? <span class="opt">(optional)</span></label><input class="input" id="onbName" data-onb-name value="${esc(onb.name)}" autocomplete="off" placeholder="z. B. Mia">` : ""}
+      ${onb.who === "family" ? `<p class="hint" style="margin-top:var(--s3)">Wir starten mit deinem Profil. Weitere Personen legst du danach im Tab „Ich“ an.</p>` : ""}`;
+    nextOk = !!onb.who; next = "Weiter";
+  } else if (st === "status"){
+    const w = onbOther() ? esc(onbName()) : "du";
+    body = `<h1 id="onbTitle" tabindex="-1">${onbOther() ? `Was weißt du über ${esc(onbName())}?` : "Wo stehst du gerade?"}</h1>
+      <div class="onb-choices" role="radiogroup" aria-label="Stand">
+        ${onbChoice("status", "known", "Unverträglichkeiten sind bekannt", "Zum Beispiel ärztlich festgestellt", onb.status)}
+        ${onbChoice("status", "suspect", "Es gibt einen Verdacht", "Die App prüft danach und hilft, ihn zu bestätigen", onb.status)}
+        ${onbChoice("status", "unknown", "Noch unklar", onbOther() ? `Du trägst ein, was ${w} isst und wie es vertragen wird – die App sucht nach Mustern` : "Du trägst ein, was du isst und wie es dir bekommt – die App sucht nach Mustern", onb.status)}
+      </div>`;
+    nextOk = !!onb.status; next = "Weiter";
+  } else if (st === "cats"){
     const grp = G => `<h2>${G.title}</h2><div class="pick" role="group" aria-label="${G.title}">${CAT_DEF.filter(d => d.grp === G.g).map(d =>
       `<button type="button" aria-pressed="${onbSel.has(d.k)}" data-pick="${d.k}">${SVG.check}${esc(d.n)}</button>`).join("")}</div>`;
-    const n = onbSel.size;
-    o.innerHTML = `<div class="onb-in"><div class="onb-body">${dots}
-      <h1 id="onbTitle" tabindex="-1">Was verträgst du nicht?</h1>
-      <p class="lead">Wähle alles aus, was auf dich zutrifft. Feinjustieren und ändern kannst du es jederzeit im Profil.</p>
+    const sus = onb.status === "suspect", who = onbOther() ? esc(onbName()) : "";
+    body = `<h1 id="onbTitle" tabindex="-1">${sus ? (who ? `Was vermutest du bei ${who}?` : "Was vermutest du?") : (who ? `Was verträgt ${who} nicht?` : "Was verträgst du nicht?")}</h1>
+      <p class="lead">${sus ? "Wähle aus, was du im Verdacht hast. Die App prüft Produkte danach – und die Analyse zeigt später, ob sich der Verdacht bestätigt." : "Wähle alles aus, was zutrifft. Feinjustieren kannst du jederzeit im Profil."}</p>
       ${GROUPS.map(grp).join("")}
-      <details class="disc onb-more"><summary>${SVG.chev}Gluten oder Weizen – was passt zu mir?</summary>
+      <details class="disc onb-more"><summary>${SVG.chev}Gluten oder Weizen – was passt?</summary>
         <ul class="steps" style="margin-top:var(--s2)">
           <li><b>Zöliakie</b> (Autoimmunerkrankung): „Gluten“ wählen, im Profil Stufe „Zöliakie“ – streng, auch Spuren.</li>
           <li><b>Gluten-/Weizensensitivität</b>: „Gluten“ wählen, Stufe „Sensitivität“ – die Menge macht's.</li>
           <li><b>Weizenallergie</b> (echte Allergie): „Weizenallergie“ wählen – Roggen und Gerste gehen oft, glutenfreie Weizenstärke aber nicht.</li>
           <li>Probleme mit Weizen<b>brot</b>, aber nicht mit Weizen<b>stärke</b>? Oft stecken Fruktane dahinter – dann „FODMAP“.</li>
         </ul>
-        <p class="hint">Verdacht auf Zöliakie? Lass dich testen, <b>bevor</b> du Gluten weglässt – sonst ist der Test nicht mehr aussagekräftig.</p></details>
-    </div>
-    <div class="onb-foot"><button type="button" class="btn btn-primary btn-lg btn-block" data-onb="done"${n ? "" : ' aria-disabled="true"'}>${n ? `${onbFromProfile ? "Fertig" : "Weiter"} – ${n} ausgewählt` : "Wähle mindestens eins aus"}</button><button type="button" class="btn-link" data-onb="skip">Später einrichten</button></div></div>`;
+        <p class="hint">Verdacht auf Zöliakie? Lass dich testen, <b>bevor</b> du Gluten weglässt – sonst ist der Test nicht mehr aussagekräftig.</p></details>`;
+    const c = onbSel.size;
+    nextOk = sus || c > 0;
+    next = c ? `${onbFromProfile ? "Fertig" : "Weiter"} – ${c} ausgewählt` : sus ? "Weiter ohne Auswahl" : "Wähle mindestens eins aus";
+  } else if (st === "pen"){
+    body = `<h1 id="onbTitle" tabindex="-1">Gibt es ein Notfallmedikament?</h1>
+      <p class="lead">Zum Beispiel einen Adrenalin-Pen. Dann richten wir einen Notfall-Bereich ein – mit Notfallplan, Notruf und Erinnerung ans Ablaufdatum.</p>
+      <div class="onb-choices" role="radiogroup" aria-label="Notfallmedikament">
+        ${onbChoice("pen", "yes", "Ja", "", onb.pen)}${onbChoice("pen", "no", "Nein", "", onb.pen)}
+      </div>`;
+    nextOk = !!onb.pen; next = "Weiter";
+  } else if (st === "goals"){
+    if (!onb.goals) onb.goals = onbDefaultGoals();
+    body = `<h1 id="onbTitle" tabindex="-1">Wobei soll die App helfen?</h1>
+      <p class="lead">Wähle alles, was passt – wir haben schon etwas vorgeschlagen.</p>
+      <div class="onb-choices" role="group" aria-label="Ziele">${ONB_GOALS.map(G => `<button type="button" class="onb-choice" aria-pressed="${onb.goals.has(G.k)}" data-goal="${G.k}"><span class="ico">${ONB_ICO[G.k]}</span><span class="txt"><b>${G.n}</b><small>${G.d}</small></span><span class="tick">${SVG.check}</span></button>`).join("")}</div>`;
+    next = "Weiter";
+  } else if (st === "summary"){
+    if (!onb.featTouched) onbFeat = onbFeatures();
+    const cats = [...onbSel].map(c => CATS[c]);
+    body = `<h1 id="onbTitle" tabindex="-1">So ist ${onbOther() ? `die App für ${esc(onbName())}` : "deine App"} eingerichtet</h1>
+      <p class="lead">${cats.length ? `${onb.status === "suspect" ? "Verdacht" : "Profil"}: ${esc(cats.join(", "))}.` : "Noch kein Profil – die Analyse im Tagebuch findet heraus, was nicht guttut."} Diese Funktionen sind an – ändern kannst du alles jederzeit im Tab „Ich“.</p>
+      <ul class="cat-list onb-feat">${featureListHtml(onbFeat, null, f => onbFeat.has(f.k))}</ul>
+      <details class="disc onb-more"><summary>${SVG.chev}Weitere Funktionen (${FEATURES.filter(f => !onbFeat.has(f.k)).length})</summary>
+        <ul class="cat-list onb-feat">${featureListHtml(onbFeat, null, f => !onbFeat.has(f.k))}</ul></details>`;
+    next = "Fertig – los geht’s";
   }
+  const skip = st === "welcome" ? `<button type="button" class="btn-link" data-onb="skip">Überspringen</button>` : !last && !onbFromProfile ? `<button type="button" class="btn-link onb-later" data-onb="skip">Später einrichten</button>` : "";
+  o.innerHTML = `<div class="onb-in"><div class="onb-body">${dots}${body}</div>
+    <div class="onb-foot"><button type="button" class="btn btn-primary btn-lg btn-block" data-onb="next"${nextOk ? "" : ' aria-disabled="true"'}>${next}</button>${back}${skip}</div></div>`;
   const t = $("#onbTitle"); if (t) t.focus({preventScroll:true});
   o.scrollTop = 0;
 }
+function onbFinish(){
+  KEYS.forEach(c => profile.on[c] = onbSel.has(c));
+  saveProfile();
+  if (onbFromProfile){ closeOnb(); goView("check"); refreshAll(); toast("Profil gespeichert"); return; }
+  if (onb.who === "other" && onb.name.trim()){ me().name = onb.name.trim().slice(0, 30); syncPerson(); }
+  FEATURES.forEach(f => settings.features[f.k] = onbFeat.has(f.k));
+  settings.onb = {who: onb.who, status: onb.status, goals: [...(onb.goals || [])]};
+  settings.newHint = false; saveSettings();
+  closeOnb();
+  if (onb.status === "unknown" && F("diary")){ goView("diary"); refreshAll(); toast("Trag ein, was gegessen wurde – die Analyse sucht nach Mustern"); }
+  else { goView("check"); refreshAll(); toast("Fertig – scanne dein erstes Produkt"); $("#scanBtn").focus({preventScroll:true}); }
+}
 $("#onb").addEventListener("change", e => {
   const t = e.target.closest("[data-feat]"); if (!t) return;
-  const k = t.dataset.feat;
+  const k = t.dataset.feat; onb.featTouched = true;
   if (t.checked){ onbFeat.add(k); if (FEAT[k].needs) onbFeat.add(FEAT[k].needs); }
   else { onbFeat.delete(k); FEATURES.filter(f => f.needs === k).forEach(f => onbFeat.delete(f.k)); }
   $$("#onb [data-feat]").forEach(i => i.checked = onbFeat.has(i.dataset.feat));
 });
+$("#onb").addEventListener("input", e => { if (e.target.closest("[data-onb-name]")) onb.name = e.target.value; });
+$("#onb").addEventListener("keydown", e => { if (e.key === "Enter" && e.target.closest("[data-onb-name]")){ e.preventDefault(); $('#onb [data-onb="next"]').click(); } });
 $("#onb").addEventListener("click", e => {
   const p = e.target.closest("[data-pick]");
   if (p){
     const k = p.dataset.pick; onbSel.has(k) ? onbSel.delete(k) : onbSel.add(k);
     p.setAttribute("aria-pressed", onbSel.has(k));
-    const d = $('#onb [data-onb="done"]'), n = onbSel.size;
-    d.textContent = n ? `${onbFromProfile ? "Fertig" : "Weiter"} – ${n} ausgewählt` : "Wähle mindestens eins aus";
-    if (n) d.removeAttribute("aria-disabled"); else d.setAttribute("aria-disabled", "true");
+    onb.goals = null; onb.featTouched = false;
+    const d = $('#onb [data-onb="next"]'), n = onbSel.size, sus = onb.status === "suspect";
+    d.textContent = n ? `${onbFromProfile ? "Fertig" : "Weiter"} – ${n} ausgewählt` : sus ? "Weiter ohne Auswahl" : "Wähle mindestens eins aus";
+    if (n || sus) d.removeAttribute("aria-disabled"); else d.setAttribute("aria-disabled", "true");
     return;
   }
-  const b = e.target.closest("[data-onb]"); if (!b) return;
-  const a = b.dataset.onb;
-  if (a === "next"){ onbStep = 2; renderOnb(); }
-  else if (a === "skip"){ if (!hasStoredProfile) saveProfile(); closeOnb(); refreshAll(); toast("Dein Profil kannst du jederzeit unter „Profil“ einrichten"); }
-  else if (a === "done"){
-    if (!onbSel.size){ toast("Tippe auf alles, was du nicht verträgst"); return; }
-    KEYS.forEach(c => profile.on[c] = onbSel.has(c));
-    saveProfile();
-    if (onbFromProfile){ closeOnb(); goView("check"); refreshAll(); toast("Profil gespeichert"); return; }
-    const rec = recommendFeatures([...onbSel]);
-    onbFeat = new Set(FEATURES.map(f => f.k).filter(k => rec.has(k)));
-    onbStep = 3; renderOnb();
+  const c = e.target.closest("[data-q]");
+  if (c){
+    const q = c.dataset.q, v = c.dataset.v, changed = onb[q] !== v;
+    onb[q] = v;
+    if (changed && q !== "pen"){ onb.goals = null; onb.featTouched = false; }
+    if (q === "status" && v === "unknown") onbSel.clear();
+    renderOnb();
+    if (q === "who" && v === "other"){ const n = $("#onbName"); if (n) n.focus(); return; }
+    /* Einfachauswahl: kurz zeigen, dann weiter */
+    setTimeout(() => { if (onb[q] === v && onbSteps()[onb.step] === (q === "pen" ? "pen" : q)){ onb.step++; renderOnb(); } }, 220);
+    return;
   }
-  else if (a === "back"){ onbStep = 2; renderOnb(); }
-  else if (a === "finish"){
-    FEATURES.forEach(f => settings.features[f.k] = onbFeat.has(f.k));
-    settings.newHint = false; saveSettings();
-    closeOnb(); goView("check"); refreshAll();
-    toast("Fertig – scanne dein erstes Produkt");
-    $("#scanBtn").focus({preventScroll:true});
+  const g = e.target.closest("[data-goal]");
+  if (g){ const k = g.dataset.goal; onb.goals.has(k) ? onb.goals.delete(k) : onb.goals.add(k); g.setAttribute("aria-pressed", onb.goals.has(k)); onb.featTouched = false; return; }
+  const b = e.target.closest("[data-onb]"); if (!b) return;
+  const a = b.dataset.onb, steps = onbSteps(), st = steps[onb.step];
+  if (a === "skip"){ if (!hasStoredProfile) saveProfile(); closeOnb(); refreshAll(); toast("Einrichten kannst du jederzeit im Tab „Ich“"); return; }
+  if (a === "back"){ onb.step = Math.max(0, onb.step - 1); renderOnb(); return; }
+  if (a === "next"){
+    if (b.getAttribute("aria-disabled") === "true"){
+      toast(st === "cats" ? "Tippe auf alles, was nicht vertragen wird" : "Wähle eine Antwort aus"); return;
+    }
+    if (st === "cats" && onbFromProfile){ onbFinish(); return; }
+    if (onb.step >= steps.length - 1){ onbFinish(); return; }
+    onb.step++; renderOnb();
   }
 });
 $("#onbAgain").addEventListener("click", () => showOnb(true));
