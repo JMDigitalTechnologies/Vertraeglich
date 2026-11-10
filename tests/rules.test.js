@@ -6,7 +6,7 @@ const root = path.join(__dirname, "..");
 const ctx = {console}; vm.createContext(ctx);
 vm.runInContext(fs.readFileSync(path.join(root, "data.js"), "utf8") + "\n" +
   fs.readFileSync(path.join(root, "engine.js"), "utf8").replace(/if \(typeof module !== "undefined"\)[\s\S]*$/, "") +
-  "\nthis.E = {evaluate, splitIngredients, recipeRaw, RECIPES, KEYS, FOODS, estimateLactose, analyze};", ctx);
+  "\nthis.E = {evaluate, splitIngredients, recipeRaw, RECIPES, KEYS, FOODS, estimateLactose, analyze, DISHES};", ctx);
 const E = ctx.E;
 function prof(spec){
   const on = {}, sens = {};
@@ -121,6 +121,17 @@ for (const [txt, x, want] of LAC_CASES){
   if (["strong","possible"].includes(a.cats.h.verdict)){ fail++; console.log("✕ Analyse meldet Histamin fälschlich"); }
   const calm = E.analyze([...bad, ...good].map((n, i) => Object.assign(F(n), {reaction: i % 3 ? "good" : "bad"})), empty);
   if (calm.groups.length > 1){ fail++; console.log("✕ Analyse meldet Muster bei Zufallsdaten: " + calm.groups.join(" | ")); }
+}
+/* Gerichte für die Foto-Erkennung: vollständig und auswertbar */
+{
+  const seen = new Set();
+  for (const d of E.DISHES){
+    if (d.length !== 3 || !d[1] || d[2].split(",").length < 2){ fail++; console.log("✕ Gericht unvollständig: " + d[0]); }
+    if (seen.has(d[0])){ fail++; console.log("✕ Gericht doppelt: " + d[0]); } seen.add(d[0]);
+  }
+  const lasagne = E.DISHES.find(d => d[0] === "Lasagne");
+  const ev = E.evaluate({mode:"recipe", items: lasagne[2].split(",").map(n => ({n: n.trim()}))}, prof("g,l"));
+  if (ev.total !== 2){ fail++; console.log("✕ Lasagne sollte bei Gluten/Laktose rot sein"); }
 }
 /* Rezepte: was in der Zubereitung verwendet wird, steht auch in der Zutatenliste */
 const norm = s => String(s||"").toLowerCase().replace(/ä/g,"ae").replace(/ö/g,"oe").replace(/ü/g,"ue").replace(/ß/g,"ss");

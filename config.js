@@ -21,6 +21,7 @@ const APP_CONFIG = {
     program:      {available: true, plus: false},
     card:         {available: true, plus: false},
     emergency:    {available: true, plus: false},
+    dish:         {available: true, plus: false},
   },
   data: {
     off: "https://world.openfoodfacts.org",      // Produktdatenbank (ODbL)

@@ -13,7 +13,7 @@ const fmtDate = ts => new Date(ts).toLocaleString("de-DE", {day:"2-digit", month
 const fmtTime = ts => new Date(ts).toLocaleTimeString("de-DE", {hour:"2-digit", minute:"2-digit"});
 const REACT = {good:"Gut", unsure:"Weiß nicht", bad:"Schlecht"};
 const REACT_DOT = {good:"var(--ok)", unsure:"var(--unk)", bad:"var(--bad)"};
-const SRC = {barcode:"Barcode", foto:"Foto", text:"Text", food:"Lebensmittel", recipe:"Rezept"};
+const SRC = {barcode:"Barcode", foto:"Foto", text:"Text", food:"Lebensmittel", recipe:"Rezept", dish:"Gericht (Foto)"};
 const MEALS = {alle:"Alle", fruehstueck:"Frühstück", mittag:"Mittagessen", abend:"Abendessen", snack:"Snack"};
 const SENS_TXT_INT = {1:"Nur klare Problemzutaten zählen", 2:"Standard", 3:"Auch „Vorsicht“-Zutaten und kleine Mengen meiden"};
 const SENS_TXT_ALL = {1:"Nur enthaltene Zutaten – Spurenhinweise ignorieren", 2:"Standard – Spurenhinweise als Vorsicht", 3:"Streng – auch Spurenhinweise meiden"};
@@ -242,7 +242,7 @@ document.addEventListener("keydown", e => {
 function openEntrySheet(h, opts){
   opts = opts || {};
   const inn = $("#sheetIn");
-  const isCheck = ["barcode","text","foto"].includes(h.src);
+  const isCheck = ["barcode","text","foto","dish"].includes(h.src);
   inn.innerHTML = `${opts.note ? `<div class="feedback fb-warn" style="margin:0 0 var(--s3)">${fbHtml(esc(opts.note), "", "", SVG.warn)}</div>` : ""}<div id="shRes"></div>
     <div class="sheet-actions">
       ${opts.fromCheck ? `<button type="button" class="btn btn-primary btn-block" id="shNext">${SVG.scan}Nächstes Produkt scannen</button>` : ""}

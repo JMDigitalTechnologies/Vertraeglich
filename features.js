@@ -13,6 +13,7 @@ const FEATURES = [
   {k:"symptoms",     n:"Beschwerden erfassen",     d:"Beschwerden mit Stärke und Uhrzeit – erkennt auch verzögerte Reaktionen", needs:"diary", where:"Tagebuch"},
   {k:"report",       n:"Bericht für den Arzt",     d:"Tagebuch und Auswertung als PDF oder Tabelle teilen", needs:"diary", where:"Tagebuch"},
   {k:"program",      n:"Ernährungsprogramm",       d:"Schritt für Schritt durch Karenz-, Test- und Dauerphase", needs:"diary", where:"Tagebuch"},
+  {k:"dish",         n:"Gericht per Foto erkennen",d:"Teller fotografieren – die App erkennt das Gericht und zeigt typische Problemzutaten. Läuft auf deinem Gerät", where:"Prüfen"},
   {k:"menu",         n:"Speisekarte prüfen",       d:"Speisekarte fotografieren – Gerichte mit kritischen Zutaten werden markiert", where:"Prüfen"},
   {k:"alternatives", n:"Alternativen vorschlagen", d:"Bei roten Produkten verträgliche Alternativen finden", where:"Ergebnis"},
   {k:"family",       n:"Mehrere Profile",          d:"Für Familie oder Partner – sieh sofort, für wen ein Produkt passt", where:"Ich"},
@@ -429,7 +430,7 @@ function othersHtml(e){
 function resultExtras(e, ev, where){
   let h = "";
   const othersAllergy = multi() && people.list.some(p => p.id !== people.active && hasAllergy(normProfile(p.profile || {})));
-  if (where === "top"){ h += lacBlock(e.raw); if (multi() && othersAllergy) h += othersHtml(e); return h; }
+  if (where === "top"){ if (e.src === "dish") h += `<div class="note">Typische Zutaten für dieses Gericht – im Restaurant oder zu Hause kann es anders sein. Frag im Zweifel nach${F("card") ? " oder zeig deine Allergiekarte" : ""}.</div>`; if (e.src !== "dish") h += lacBlock(e.raw); if (multi() && othersAllergy) h += othersHtml(e); return h; }
   if (multi() && !othersAllergy) h += othersHtml(e);
   if (F("lists") && e.src !== "symptom"){
     const f = isFav(e);
@@ -816,6 +817,7 @@ function renderShell(){
   if (cur === "v-sos"){ $("#viewTitle").textContent = TITLES.sos; renderSos(); }
   if (cur === "v-eat") renderEat();
   const mi = $("#menuItem"); if (mi) mi.hidden = !F("menu");
+  const di = $("#dishItem"); if (di) di.hidden = !F("dish");
   const open = openRatings().length, nd = $("#numDiary"); if (nd){ nd.hidden = !open || !F("diary"); nd.textContent = open; }
   renderThemeCard();
   renderDataCard();
@@ -1070,6 +1072,123 @@ function renderThemeCard(){
 document.addEventListener("click", ev => {
   const b = ev.target.closest("[data-theme-set]"); if (!b) return;
   settings.theme = b.dataset.themeSet; saveSettings(); applyTheme(); renderThemeCard();
+});
+
+/* ================= Gericht per Foto (MobileCLIP, läuft auf dem Gerät) =================
+   Das Bildmodell vergleicht das Foto mit Beschreibungen aller Gerichte aus DISHES.
+   Beim ersten Mal wird das Modell geladen (vom Browser gespeichert); das Foto verlässt das Gerät nicht. */
+const DISH_MODEL = "Xenova/mobileclip_s0", DISH_LIB = "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3";
+const DISH_KEY = "vt_dishemb";
+let dishLib = null, dishVision = null, dishProc = null;
+const dishSig = () => DISH_MODEL + "|" + DISHES.map(d => d[1]).join("|") + "|" + DISH_NOT_FOOD.join("|");
+async function dishLoad(progress){
+  if (!dishLib){ dishLib = await import(DISH_LIB); dishLib.env.allowLocalModels = false; }
+  const T = dishLib, opt = {progress_callback: progress};
+  const load = async Cls => { try { return await Cls.from_pretrained(DISH_MODEL, Object.assign({dtype: "q8"}, opt)); }
+    catch(e){ return await Cls.from_pretrained(DISH_MODEL, Object.assign({dtype: "fp32"}, opt)); } };
+  if (!dishProc) dishProc = await T.AutoProcessor.from_pretrained(DISH_MODEL, opt);
+  if (!dishVision) dishVision = await load(T.CLIPVisionModelWithProjection);
+  let emb = null;
+  try{ const s = JSON.parse(localStorage.getItem(DISH_KEY)); if (s && s.sig === dishSig()) emb = s.emb; }catch(e){}
+  if (!emb){
+    /* Textbeschreibungen nur einmal berechnen und merken – danach braucht es nur noch das Bildmodell */
+    const tok = await T.AutoTokenizer.from_pretrained(DISH_MODEL, opt);
+    const tm = await load(T.CLIPTextModelWithProjection);
+    const prompts = [...DISHES.map(d => "a photo of " + d[1] + ", a type of food"), ...DISH_NOT_FOOD.map(x => "a photo of " + x)];
+    const {text_embeds} = await tm(tok(prompts, {padding: "max_length", truncation: true}));
+    emb = text_embeds.normalize().tolist().map(v => v.map(x => Math.round(x * 1e4) / 1e4));
+    try{ localStorage.setItem(DISH_KEY, JSON.stringify({sig: dishSig(), emb})); }catch(e){}
+  }
+  return emb;
+}
+async function dishShrink(file){
+  try{
+    const bmp = await createImageBitmap(file), s = Math.min(1, 512 / Math.max(bmp.width, bmp.height));
+    const c = document.createElement("canvas"); c.width = Math.round(bmp.width * s); c.height = Math.round(bmp.height * s);
+    c.getContext("2d").drawImage(bmp, 0, 0, c.width, c.height);
+    return await new Promise(r => c.toBlob(b => r(b || file), "image/jpeg", 0.9));
+  }catch(e){ return file; }
+}
+async function dishClassify(file, emb){
+  const img = await dishLib.RawImage.fromBlob(await dishShrink(file));
+  const {image_embeds} = await dishVision(await dishProc(img));
+  const v = image_embeds.normalize().tolist()[0];
+  const lg = emb.map(t => 100 * t.reduce((s, x, i) => s + x * v[i], 0)), mx = Math.max(...lg);
+  const ex = lg.map(l => Math.exp(l - mx)), sum = ex.reduce((a, b) => a + b, 0), p = ex.map(x => x / sum);
+  return {ranked: DISHES.map((d, i) => ({i, p: p[i]})).sort((a, b) => b.p - a.p), notFood: p.slice(DISHES.length).reduce((a, b) => a + b, 0)};
+}
+function dishRaw(i){ return {mode: "recipe", items: DISHES[i][2].split(",").map(n => ({n: n.trim()})).filter(x => x.n)}; }
+function dishPick(i){
+  const e = addEntry(DISHES[i][0], dishRaw(i), "dish");
+  openEntrySheet(e);
+}
+function dishChooserHtml(res, url){
+  const top = res ? res.ranked.slice(0, 3).filter((x, k) => k === 0 || x.p >= 0.04) : [];
+  const unsure = !res || res.ranked[0].p < 0.3;
+  return `${url ? `<img class="preview" src="${url}" alt="Dein Foto">` : ""}
+    ${res && res.notFood > 0.5 ? `<div class="feedback fb-warn">${fbHtml("Sieht nicht nach einem Gericht aus", "Fotografiere den Teller von oben und möglichst formatfüllend – oder wähle unten aus.", "", SVG.warn)}</div>` : ""}
+    ${top.length ? `<h3 class="block-title" style="margin-top:var(--s3)">Ist das …?</h3><div class="dish-opts">${top.map(x => `<button type="button" class="row-btn dish-opt" data-dish="${x.i}"><span class="txt"><b>${esc(DISHES[x.i][0])}</b><small>${Math.round(x.p * 100)} % sicher</small></span>${SVG.chev}</button>`).join("")}</div>` : ""}
+    ${unsure && res ? `<p class="hint">Die Erkennung ist unsicher. Wähle das passende Gericht oder suche es.</p>` : ""}
+    <label class="label" for="dishQ">${top.length ? "Etwas anderes?" : "Welches Gericht?"}</label>
+    <div class="searchrow"><input class="input" id="dishQ" list="dishList" autocomplete="off" placeholder="z. B. Lasagne, Döner, Käsespätzle"><button type="button" class="btn btn-secondary" id="dishGo">Prüfen</button></div>
+    <datalist id="dishList">${DISHES.map(d => `<option value="${esc(d[0])}">`).join("")}</datalist>
+    <p class="fine">Die App zeigt typische Zutaten – was wirklich drin ist, kann abweichen (z. B. Sahne in der Soße, Mehl zum Binden). Dein Foto bleibt auf deinem Gerät.</p>`;
+}
+function dishWire(){
+  $("#sheetIn").onclick = ev => {
+    const o = ev.target.closest("[data-dish]"); if (o){ dishPick(+o.dataset.dish); return; }
+    if (ev.target.closest("#dishGo")){
+      const q = ($("#dishQ").value || "").trim(); if (!q){ $("#dishQ").focus(); return; }
+      const i = DISHES.findIndex(d => norm(d[0]) === norm(q));
+      if (i >= 0){ dishPick(i); return; }
+      /* Unbekanntes Gericht: wie eine Speisekarten-Zeile bewerten */
+      const r = rateMenuLine(q), nq = norm(q);
+      /* bekannte Gerichte im Text (z. B. „… mit Kartoffelsalat“) mit ihren typischen Zutaten einbeziehen */
+      const known = DISHES.map((d, k) => k).filter(k => norm(DISHES[k][0]).split(/[^a-z]+/).some(w => w.length >= 6 && nq.includes(w)));
+      const items = [{n: q, x: r.res, note: Object.values(r.why).flat().filter((v, k, a) => a.indexOf(v) === k).join(" · ") || ""}, ...known.flatMap(k => dishRaw(k).items)];
+      const e = addEntry(q, {mode: "recipe", items}, "dish");
+      openEntrySheet(e); return;
+    }
+    if (ev.target.closest("[data-dish-load]")) dishRun(window._dishFile);
+  };
+  const q = $("#dishQ"); if (q) q.addEventListener("keydown", e => { if (e.key === "Enter"){ e.preventDefault(); $("#dishGo").click(); } });
+}
+async function dishRun(file){
+  const inn = $("#sheetIn"), url = file ? URL.createObjectURL(file) : "";
+  const first = !settings.dishReady;
+  if (first && !window._dishOk){
+    window._dishFile = file;
+    inn.innerHTML = `${url ? `<img class="preview" src="${url}" alt="Dein Foto">` : ""}
+      <div class="note">Beim ersten Mal lädt die App das Bildmodell (rund 90 MB, am besten im WLAN). Danach erkennt sie Gerichte auch offline – dein Foto verlässt das Gerät nie.</div>
+      <div class="sheet-actions"><button type="button" class="btn btn-primary btn-block" data-dish-load>Laden und erkennen</button></div>
+      ${dishChooserHtml(null, "").replace(/<img[^>]*>/, "")}`;
+    openSheet("Gericht erkennen", {type: "dish"}); window._dishOk = true; dishWire(); return;
+  }
+  const files = {};
+  inn.innerHTML = `${url ? `<img class="preview" src="${url}" alt="Dein Foto">` : ""}<div id="dishProg">${loadingHtml(dishVision ? "Erkenne Gericht…" : "Lade Bildmodell…")}</div>`;
+  openSheet("Gericht erkennen", {type: "dish"});
+  const prog = p => {
+    if (!p || p.status !== "progress" || !p.total) return;
+    files[p.file] = [p.loaded || 0, p.total];
+    const v = Object.values(files), l = v.reduce((s, x) => s + x[0], 0), t = v.reduce((s, x) => s + x[1], 0);
+    const s = $("#dishProg .loading span:last-child"); if (s) s.textContent = `Lade Bildmodell… ${Math.round(l / 1048576)} von ${Math.round(t / 1048576)} MB`;
+  };
+  try{
+    const emb = await dishLoad(prog);
+    settings.dishReady = true; saveSettings();
+    const s = $("#dishProg .loading span:last-child"); if (s) s.textContent = "Erkenne Gericht…";
+    const res = await dishClassify(file, emb);
+    inn.innerHTML = dishChooserHtml(res, url);
+  }catch(x){
+    console.warn(x);
+    inn.innerHTML = `<div class="feedback fb-err">${fbHtml("Erkennung nicht möglich", navigator.onLine ? "Das Bildmodell ließ sich nicht laden oder ausführen. Versuch es noch einmal – oder wähle das Gericht selbst." : "Beim ersten Mal muss das Bildmodell geladen werden – dafür brauchst du Internet. Du kannst das Gericht auch selbst wählen.", "", SVG.warn)}</div>${dishChooserHtml(null, url)}`;
+  }
+  dishWire();
+}
+document.addEventListener("click", ev => { if (ev.target.closest("#dishBtn")) $("#dishPhoto").click(); });
+$("#dishPhoto") && $("#dishPhoto").addEventListener("change", ev => {
+  const file = ev.target.files && ev.target.files[0]; ev.target.value = ""; if (!file) return;
+  window._dishOk = false; dishRun(file);
 });
 
 /* ================= Datensicherung ================= */
