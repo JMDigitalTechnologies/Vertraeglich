@@ -6,7 +6,7 @@ const root = path.join(__dirname, "..");
 const ctx = {console}; vm.createContext(ctx);
 vm.runInContext(fs.readFileSync(path.join(root, "data.js"), "utf8") + "\n" +
   fs.readFileSync(path.join(root, "engine.js"), "utf8").replace(/if \(typeof module !== "undefined"\)[\s\S]*$/, "") +
-  "\nthis.E = {evaluate, splitIngredients, recipeRaw, RECIPES, KEYS, FOODS, estimateLactose};", ctx);
+  "\nthis.E = {evaluate, splitIngredients, recipeRaw, RECIPES, KEYS, FOODS, estimateLactose, analyze};", ctx);
 const E = ctx.E;
 function prof(spec){
   const on = {}, sens = {};
@@ -109,6 +109,18 @@ for (const [txt, x, want] of LAC_CASES){
   const r = E.estimateLactose(Object.assign({items: E.splitIngredients(txt).parts.map(n => ({n}))}, x));
   const got = r ? r.est : null;
   if (got !== want){ fail++; console.log(`✕ Laktose erwartet ${want}, bekommen ${got}: ${txt}`); }
+}
+/* Analyse: erkennt Laktose auch ohne Profil, meldet ohne Muster nichts */
+{
+  const F = n => { const f = E.FOODS.find(x => x.n === n); return {raw:{mode:"food", items:[{n:f.n, x:Object.fromEntries(E.KEYS.map(c => [c, f[c] || 0]))}]}}; };
+  const empty = {on:Object.fromEntries(E.KEYS.map(k => [k, false])), sens:{}, mine:{}};
+  const bad = ["Milch","Quark","Joghurt natur","Sahne","Frischkäse","Speiseeis (Milch)","Kefir, Buttermilch","Milch"], good = ["Reis","Kartoffel","Banane","Laktosefreie Milch","Hafermilch","Apfel","Gouda alt, Emmentaler, Bergkäse","Süßkartoffel","Tomate","Reisnudeln","Laktosefreier Joghurt","Mandelmilch"];
+  const ents = [...bad.map(n => Object.assign(F(n), {reaction:"bad"})), ...good.map(n => Object.assign(F(n), {reaction:"good"}))];
+  const a = E.analyze(ents, empty);
+  if (a.cats.l.verdict !== "strong"){ fail++; console.log("✕ Analyse erkennt Laktose nicht: " + a.cats.l.verdict); }
+  if (["strong","possible"].includes(a.cats.h.verdict)){ fail++; console.log("✕ Analyse meldet Histamin fälschlich"); }
+  const calm = E.analyze([...bad, ...good].map((n, i) => Object.assign(F(n), {reaction: i % 3 ? "good" : "bad"})), empty);
+  if (calm.groups.length > 1){ fail++; console.log("✕ Analyse meldet Muster bei Zufallsdaten: " + calm.groups.join(" | ")); }
 }
 /* Rezepte: was in der Zubereitung verwendet wird, steht auch in der Zutatenliste */
 const norm = s => String(s||"").toLowerCase().replace(/ä/g,"ae").replace(/ö/g,"oe").replace(/ü/g,"ue").replace(/ß/g,"ss");

@@ -268,7 +268,7 @@ function buildReport(days){
     const rx = h.reaction ? REACT[h.reaction] : derived[h.id] ? REACT[derived[h.id]] + " (abgeleitet)" : "";
     return `<tr><td>${fmtDate(mealTime(h))}</td><td>${esc(SRC[h.src] || "")}</td><td>${esc(h.name)}${ev.total ? "<br><i>" + esc(reasonText(ev)) + "</i>" : ""}</td><td>${rx}</td></tr>`;
   };
-  const verd = c => ({strong:"starker Hinweis", possible:"möglicher Hinweis", none:"kein Hinweis", data:"zu wenig Daten"})[a.cats[c].verdict];
+  const verd = c => ({strong:"starker Hinweis", possible:"möglicher Hinweis", none:"kein Hinweis", unclear:"noch unklar", data:"zu wenig Daten"})[a.cats[c].verdict];
   const frac = (b, w) => w >= 0.5 ? `${Math.round(b*10)/10} von ${Math.round(w*10)/10} (${Math.round(b / w * 100)} %)` : "–";
   $("#printArea").innerHTML = `
     <h1>Ernährungs- und Symptomtagebuch</h1>

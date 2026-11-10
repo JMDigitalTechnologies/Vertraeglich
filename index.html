@@ -369,6 +369,9 @@ details.disc[open]>summary .chev{transform:rotate(90deg)}
 .progress>i{display:block;height:100%;background:var(--brand);border-radius:var(--r-pill)}
 .steps{margin:var(--s3) 0 0;padding-left:20px;font-size:var(--fs-md);color:var(--ink-2)}
 .steps li{margin:4px 0}
+.conf{display:grid;grid-template-columns:auto 1fr auto;gap:var(--s2);align-items:center;margin-top:var(--s2);font-size:var(--fs-sm);color:var(--ink-2)}
+.conf .bar i{background:var(--brand)}
+.qrate{margin-top:var(--s2);padding:var(--s3);border-radius:var(--r-md);background:var(--surface-2)}
 .acat{padding:var(--s3) 0;border-top:1px solid var(--line)}
 .acat:first-child{border-top:0}
 .acat-hd{display:flex;justify-content:space-between;align-items:center;gap:var(--s2)}
@@ -716,7 +719,7 @@ details.disc[open]>summary .chev{transform:rotate(90deg)}
 
 <script>
 /* Auto-Update: bei jedem Öffnen prüfen, ob es eine neuere Version gibt, und dann neu laden */
-const APP_VERSION = 21;
+const APP_VERSION = 22;
 (function(){
   document.getElementById("ver").textContent = "Version " + APP_VERSION;
   let checking = false;
@@ -740,10 +743,10 @@ const APP_VERSION = 21;
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") checkUpdate(); });
 })();
 </script>
-<script src="config.js?v=21"></script>
-<script src="data.js?v=21"></script>
-<script src="engine.js?v=21"></script>
-<script src="app.js?v=21"></script>
-<script src="features.js?v=21"></script>
+<script src="config.js?v=22"></script>
+<script src="data.js?v=22"></script>
+<script src="engine.js?v=22"></script>
+<script src="app.js?v=22"></script>
+<script src="features.js?v=22"></script>
 </body>
 </html>

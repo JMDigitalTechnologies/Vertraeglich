@@ -751,17 +751,35 @@ $("#recipeList").addEventListener("click", ev => {
 });
 
 /* ---------- Tagebuch + Analyse ---------- */
-const VERD = {strong:["Starker Hinweis","p-strong"], possible:["Möglicher Hinweis","p-possible"], none:["Kein Hinweis","p-none"], data:["Zu wenig Daten","p-data"]};
-function acatHtml(c, x){
-  const [vt, vc] = VERD[x.verdict];
-  const pE = Math.round(x.rE * 100), pU = Math.round(x.rU * 100);
-  let h = `<div class="acat"><div class="acat-hd"><b>${esc(CATS[c])}</b><span class="pill ${vc}">${vt}</span></div>`;
-  if (x.verdict === "data") h += `<p class="meta" style="margin-top:2px">Noch zu wenige Einträge mit und ohne ${esc(CATS[c])}-Zutaten zum Vergleichen.</p>`;
-  else h += `<div class="bars" aria-label="Schlecht vertragen: mit ${esc(CATS[c])}-Zutaten ${pE} %, ohne ${pU} %"><span>mit</span><div class="bar"><i style="width:${pE}%;background:var(--bad)"></i></div><span>${pE} %</span><span>ohne</span><div class="bar"><i style="width:${pU}%;background:var(--unk)"></i></div><span>${pU} %</span></div>`;
-  if ((x.verdict === "strong" || x.verdict === "possible") && !profile.on[c]) h += `<button type="button" class="btn btn-secondary btn-sm" data-act="${c}" style="margin-top:var(--s2)">${esc(CATS[c])} im Profil aktivieren</button>`;
-  if (c === "g" && (x.verdict === "strong" || x.verdict === "possible")) h += `<div class="note warn">Wichtig: Lass eine Zöliakie ärztlich abklären, <b>bevor</b> du dauerhaft auf Gluten verzichtest – sonst ist der Bluttest nicht mehr aussagekräftig.</div>`;
-  if ((c === "f" || c === "l") && x.verdict === "strong") h += `<div class="note">Ein H2-Atemtest beim Arzt kann eine ${c === "f" ? "Fruktose" : "Laktose"}-Unverträglichkeit sicher bestätigen.</div>`;
+const VERD = {strong:["Starker Hinweis","p-strong"], possible:["Möglicher Hinweis","p-possible"], none:["Kein Hinweis","p-none"], unclear:["Noch unklar","p-data"], data:["Zu wenig Daten","p-data"]};
+const nameList = cs => cs.map(c => CATS[c]).join(" oder ");
+/* Eine erkannte Gruppe (meist eine Kategorie, manchmal untrennbare Paare wie Gluten/Weizen) */
+function hitHtml(g, a){
+  const c = g[0], x = a.cats[c], [vt, vc] = VERD[x.verdict];
+  const pE = Math.round(x.rE * 100), pU = Math.round(x.rU * 100), conf = Math.round(Math.max(...g.map(k => a.cats[k].conf)) * 100);
+  const nm = nameList(g), off = g.filter(k => !profile.on[k]), allergy = g.some(k => CAT[k] && CAT[k].grp === "all");
+  let h = `<div class="acat"><div class="acat-hd"><b>${esc(nm)}</b><span class="pill ${vc}">${vt}</span></div>
+    <div class="conf" aria-label="Sicherheit ${conf} %"><span>Sicherheit</span><div class="bar"><i style="width:${conf}%"></i></div><span>${conf} %</span></div>
+    <div class="bars" aria-label="Schlecht vertragen: mit ${esc(CATS[c])}-Zutaten ${pE} %, ohne ${pU} %"><span>mit</span><div class="bar"><i style="width:${pE}%;background:var(--bad)"></i></div><span>${pE} %</span><span>ohne</span><div class="bar"><i style="width:${pU}%;background:var(--unk)"></i></div><span>${pU} %</span></div>`;
+  if (g.length > 1) h += `<p class="hint">Lässt sich aus deinen Einträgen nicht trennen – diese Stoffe stecken meist in denselben Lebensmitteln.</p>`;
+  const sub = ["l","f"].filter(k => !g.includes(k) && ["strong","possible"].includes(a.cats[k] && a.cats[k].verdict));
+  if (g.includes("o") && sub.length) h += `<p class="hint">${esc(sub.map(k => CATS[k]).join(" und "))} ${sub.length > 1 ? "gehören" : "gehört"} selbst zu den FODMAPs – gut möglich, dass dieser Hinweis nur daher kommt.</p>`;
+  if (off.length) h += `<div class="quick" style="margin-top:var(--s2)">${off.map(k => `<button type="button" class="btn btn-secondary btn-sm" data-act="${k}">${esc(CATS[k])} ins Profil</button>`).join("")}</div>`;
+  else h += `<p class="meta" style="margin-top:var(--s1)">Schon in deinem Profil.</p>`;
+  if (allergy) h += `<div class="note warn">Verdacht auf eine Allergie bitte ärztlich abklären lassen – nicht selbst austesten.</div>`;
+  if (g.includes("g")) h += `<div class="note warn">Wichtig: Lass eine Zöliakie ärztlich abklären, <b>bevor</b> du dauerhaft auf Gluten verzichtest – sonst ist der Bluttest nicht mehr aussagekräftig.</div>`;
+  if ((g.includes("f") || g.includes("l")) && x.verdict === "strong") h += `<div class="note">Ein H2-Atemtest beim Arzt kann eine ${g.includes("f") ? "Fruktose" : "Laktose"}-Unverträglichkeit sicher bestätigen.</div>`;
   return h + `</div>`;
+}
+/* für den Arztbericht weiterhin nutzbar */
+function acatHtml(c, x){ return hitHtml([c], {cats: {[c]: x}}); }
+/* Schnell eine Erfahrung eintragen – ohne Scan, unabhängig vom Profil */
+function quickRateHtml(){
+  return `<form class="qrate" id="qrForm" action="#"><label class="label" for="qrIn" style="margin-top:0">Erfahrung eintragen</label>
+    <input class="input" id="qrIn" list="qrList" autocomplete="off" placeholder="z. B. Milch, Tomatensoße, Pizza">
+    <datalist id="qrList">${FOODS.map(f => `<option value="${esc(f.n)}">`).join("")}</datalist>
+    <div class="seg" role="group" aria-label="Wie hast du es vertragen?" style="margin-top:var(--s2)">${Object.keys(REACT).map(k => `<button type="button" data-qr="${k}"><span class="dot" style="background:${REACT_DOT[k]}"></span>${REACT[k]}</button>`).join("")}</div>
+    <p class="hint" style="margin-top:6px">Egal ob es zu deinem Profil passt – je mehr du einträgst, gut wie schlecht, desto genauer die Analyse.</p></form>`;
 }
 function dayLabel(ts){
   const d = new Date(ts), t = new Date(); t.setHours(0,0,0,0);
@@ -771,24 +789,28 @@ function dayLabel(ts){
 }
 function renderDiary(){
   const a = analyze(analysisEntries(), P());
-  let h = `<div class="card-hd"><h2 class="h2">Analyse</h2>${a.n >= 5 ? `<span class="meta">${a.n} bewertet</span>` : ""}</div>`;
+  let h = `<div class="card-hd"><h2 class="h2">Analyse</h2>${a.n >= 5 ? `<span class="meta">${a.n} bewertet · auf dem Gerät</span>` : ""}</div>`;
+  h += quickRateHtml();
   if (a.n < 5){
-    h += `<p class="lead">Bewerte mindestens 5 Sachen, die du gegessen hast, mit <b>Gut</b> oder <b>Schlecht</b> – dann zeigt dir die Analyse Muster.</p>
+    h += `<p class="lead" style="margin-top:var(--s3)">Bewerte mindestens 5 Sachen, die du gegessen hast, mit <b>Gut</b> oder <b>Schlecht</b> – dann sucht die Analyse nach Mustern in allen ${KEYS.length} Kategorien.</p>
       <div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="5" aria-valuenow="${a.n}" aria-label="Bewertungen"><i style="width:${a.n * 20}%"></i></div>
-      <p class="meta">${a.n} von 5 Bewertungen · ideal sind 20 und mehr, auch gut vertragene Sachen</p>
-      <ol class="steps"><li>Produkt prüfen, Lebensmittel oder Rezept wählen</li><li>Nach dem Essen „Wie hast du es vertragen?“ antippen</li></ol>`;
+      <p class="meta">${a.n} von 5 Bewertungen · ideal sind 20 und mehr, auch gut vertragene Sachen</p>`;
   } else {
-    h += `<p class="meta" style="margin-bottom:var(--s2)">${a.bad} davon schlecht vertragen${a.unsure ? ` · ${a.unsure} × „weiß nicht“ nicht berücksichtigt` : ""}</p>`;
-    const hint = c => ["strong","possible"].includes(a.cats[c].verdict);
-    const main = KEYS.filter(c => profile.on[c] || hint(c)).sort((x, y) => (hint(y) - hint(x)));
-    const more = KEYS.filter(c => !main.includes(c) && ["h","f","l","g"].includes(c));
-    h += main.length ? main.map(c => acatHtml(c, a.cats[c])).join("") : `<p class="meta">Kein Profil aktiv und keine Auffälligkeiten.</p>`;
-    if (more.length) h += `<details class="disc"><summary>${SVG.chev}Weitere Kategorien</summary>${more.map(c => acatHtml(c, a.cats[c])).join("")}</details>`;
+    h += `<p class="meta" style="margin:var(--s3) 0 var(--s2)">${a.bad} davon schlecht vertragen${a.unsure ? ` · ${a.unsure} × „weiß nicht“ nicht berücksichtigt` : ""}</p>`;
+    h += `<section class="block" style="margin-top:0"><h3 class="block-title">Mögliche Unverträglichkeiten</h3>`;
+    h += a.groups.length ? a.groups.map(g => hitHtml(g, a)).join("")
+      : `<p class="meta">Bisher kein klares Muster – egal, was in deinem Profil steht. Bewerte weiter, auch gut vertragenes Essen.</p>`;
+    h += `</section>`;
+    const fine = KEYS.filter(c => a.cats[c].verdict === "none");
+    const onFine = fine.filter(c => profile.on[c]);
+    if (fine.length) h += `<section class="block"><h3 class="block-title">Eher kein Problem</h3><div class="chips">${fine.map(c => `<span class="chip lv0"><span class="sym">✓</span>${esc(CATS[c])}</span>`).join("")}</div>${onFine.length ? `<p class="hint" style="margin-top:var(--s2)">${esc(onFine.map(c => CATS[c]).join(", "))} ${onFine.length > 1 ? "stehen" : "steht"} in deinem Profil, zeigt sich in deinen Einträgen aber bisher nicht. Das kann an der Menge liegen – oder es lohnt sich, das mit deiner Ärztin oder deinem Arzt zu prüfen.</p>` : ""}</section>`;
+    const open = KEYS.filter(c => ["unclear","data"].includes(a.cats[c].verdict) && (profile.on[c] || ["h","f","l","g","o","s"].includes(c)));
+    if (open.length) h += `<details class="disc"><summary>${SVG.chev}Noch unklar (${open.length})</summary><p class="hint">Dafür gibt es zu wenige Einträge mit und ohne diese Zutaten. Bewerte gezielt auch Essen, das sie enthält.</p><div class="chips">${open.map(c => `<span class="chip off">${esc(CATS[c])}</span>`).join("")}</div></details>`;
     if (a.suspects.length) h += `<section class="block"><h3 class="block-title">Verdächtige Zutaten</h3><p class="hint" style="margin:-4px 0 var(--s1)">Tauchen vor allem bei schlecht Vertragenem auf.</p>` +
       a.suspects.map(s => `<div class="sug"><span class="name">${esc(s.name)} <span class="meta">· ${s.bad}× schlecht, ${s.good}× gut</span></span>${profile.mine[s.key] === "bad" ? '<span class="flag bad meta">✕ markiert</span>' : `<button type="button" class="btn btn-sm btn-outline" data-mk="bad" data-key="${esc(s.key)}" data-name="${esc(s.name)}">vertrage ich nicht</button>`}</div>`).join("") + `</section>`;
     if (a.safe.length) h += `<section class="block"><h3 class="block-title">Gut vertragen</h3>` +
       a.safe.map(s => `<div class="sug"><span class="name">${esc(s.name)} <span class="meta">· ${s.good}× gut</span></span>${profile.mine[s.key] === "ok" ? '<span class="flag ok meta">✓ markiert</span>' : `<button type="button" class="btn btn-sm btn-outline" data-mk="ok" data-key="${esc(s.key)}" data-name="${esc(s.name)}">vertrage ich</button>`}</div>`).join("") + `</section>`;
-    h += `<p class="fine">Die Analyse vergleicht, wie oft du Essen mit und ohne bestimmte Zutaten schlecht vertragen hast. Sie ist ein Hinweis, keine Diagnose – sprich Auffälligkeiten mit deiner Ärztin oder deinem Arzt ab.</p>`;
+    h += `<p class="fine">So funktioniert’s: Ein statistisches Lernmodell vergleicht deine Bewertungen mit den Inhaltsstoffen – über alle ${KEYS.length} Kategorien, unabhängig von deinem Profil. Es läuft komplett auf deinem Gerät, nichts wird übertragen. Die Sicherheit zeigt, wie stabil der Zusammenhang ist, wenn man deine Einträge neu mischt. Ein Hinweis, keine Diagnose – sprich Auffälligkeiten mit deiner Ärztin oder deinem Arzt ab.</p>`;
   }
   const openMore = $("#analysis details[open]");
   if (a.n >= 5) h += diaryAnalysisExtras();
@@ -813,7 +835,22 @@ function renderDiary(){
   }
   el.innerHTML = `<div class="card flush">${out}</ul></div>`;
 }
+$("#analysis").addEventListener("submit", ev => { ev.preventDefault(); });
 $("#analysis").addEventListener("click", ev => {
+  const q = ev.target.closest("[data-qr]");
+  if (q){
+    const inp = $("#qrIn"), txt = (inp.value || "").trim();
+    if (!txt){ inp.focus(); toast("Gib zuerst ein, was du gegessen hast"); return; }
+    const f = FOODS.find(x => norm(x.n) === norm(txt));
+    const raw = f ? {mode:"food", items:[{n:f.n, x:Object.fromEntries(KEYS.map(c => [c, f[c] || 0])), note:f.note}]}
+      : {mode:"label", items: splitIngredients(txt).parts.map(n => ({n}))};
+    const e = addEntry(f ? f.n : txt, raw, f ? "food" : "text");
+    e.reaction = q.dataset.qr; e.eaten = true; e.eatenAt = Date.now(); if (f && f.k === "Getränke") e.drink = true;
+    saveHistory(); renderDiary(); renderShell();
+    toast("Eingetragen: " + (f ? f.n : txt) + " – " + REACT[e.reaction]);
+    const n = $("#qrIn"); if (n) n.focus({preventScroll:true});
+    return;
+  }
   const act = ev.target.closest("[data-act]");
   if (act){ profile.on[act.dataset.act] = true; saveProfile(); toast(CATS[act.dataset.act] + " im Profil aktiviert"); refreshAll(); return; }
   handleActions(ev, () => {});
