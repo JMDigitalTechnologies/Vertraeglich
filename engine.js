@@ -200,6 +200,72 @@ function analyze(entries, profile){
   return out;
 }
 
+
+/* ---------- Laktosegehalt schätzen (g je 100 g) ----------
+   Richtwerte je 100 g Zutat; spezifische Einträge zuerst. Quellen: REWE/LGL/swissmilk-Tabellen, gerundet. */
+const LAC_TABLE = [
+  [/laktosefrei|lactosefrei|kakaobutter|erdnussbutter|sheabutter|(kokos|mandel|hafer|soja|reis|cashew|erbsen|dinkel|nuss)(milch|drink)|milchsaeure|milchsaurer|milchsaeurebakterien|joghurtkultur/, 0],
+  [/(^|[^a-z])(laktose|lactose|milchzucker)([^a-z]|$)/, 100],
+  [/molkenpulver|molkepulver|molkenerzeugnis|suessmolke|molkenmineral/, 70],
+  [/magermilchpulver|magermilchjoghurtpulver|entrahmtes milchpulver|magermilchkonzentrat/, 51],
+  [/vollmilchpulver/, 38],
+  [/sahnepulver|rahmpulver/, 20],
+  [/milchpulver|trockenmilch|milchtrockenmasse|milcherzeugnis/, 45],
+  [/kondensmilch|kondensmilcherzeugnis/, 10],
+  [/milchschokolade|vollmilchschokolade|weisse schokolade/, 7],
+  [/speiseeis|eiscreme/, 6],
+  [/schmelzkaese/, 5],
+  [/milcheiweiss|milchprotein|kasein|casein|caseinat/, 1],
+  [/(^|[^a-z])molke([^a-z]|$)/, 4.7],
+  [/buttermilch/, 4],
+  [/kefir|dickmilch|sauermilch/, 4],
+  [/joghurt|yoghurt/, 3.5],
+  [/quark|topfen/, 3.5],
+  [/huettenkaese|koerniger frischkaese/, 2.5],
+  [/frischkaese|mascarpone|ricotta/, 3],
+  [/mozzarella/, 1],
+  [/feta|hirtenkaese|halloumi/, 0.5],
+  [/parmesan|grana|pecorino|emmentaler|gouda|edamer|bergkaese|cheddar|tilsiter|gruyere|appenzeller|manchego|hartkaese|schnittkaese/, 0],
+  [/camembert|brie|weichkaese/, 0.1],
+  [/kaese/, 0.5],
+  [/sahne|rahm|creme fraiche|schmand/, 3],
+  [/butterreinfett|butterschmalz|ghee/, 0],
+  [/butter/, 0.6],
+  [/milch/, 4.8]
+];
+function lacFactor(name){ const n = norm(name); for (const [re, v] of LAC_TABLE) if (re.test(n)) return v; return null; }
+/* Liefert {lo, hi, src} in g/100 g oder null, wenn nichts Laktosehaltiges erkennbar ist.
+   src: "label" (Herstellerangabe), "lf" (als laktosefrei gekennzeichnet), "calc" (aus Zutaten geschätzt) */
+function estimateLactose(raw){
+  if (!raw) return null;
+  if (raw.lf) return {lo:0, hi:0.1, est:0.05, src:"lf"};
+  if (raw.lac != null && isFinite(raw.lac)) return {lo:+raw.lac, hi:+raw.lac, est:+raw.lac, src:"label"};
+  const items = (raw.items || []).filter(i => !i.fix && i.n);
+  let sure = 0, unk = 0, found = false, prevPct = 100;
+  const single = items.length === 1;
+  /* Käse: Milch + Lab/Kulturen → der Milchzucker ist größtenteils abgebaut oder mit der Molke weg */
+  const cheese = items.some(i => /(^|[^a-z])lab([^a-z]|$)|kaesereikultur|reifungskultur|mikrobielles lab/.test(norm(i.n)));
+  items.forEach((it, k) => {
+    let f = lacFactor(it.n);
+    if (cheese && f === 4.8) f = 1;
+    /* „3,5 % Fett“ ist kein Mengenanteil */
+    const pc = /fett|protein|eiweiss/i.test(norm(it.n)) ? null : parsePct(it.n);
+    const pos = k + 1;
+    if (f == null){ if (pc != null) prevPct = Math.min(prevPct, pc); return; }
+    if (f > 0) found = true;
+    if (pc != null){ sure += pc * f / 100; prevPct = Math.min(prevPct, pc); }
+    else if (single) sure += f;
+    /* Anteil unbekannt: höchstens so viel wie die Zutat davor und 100 % / Position */
+    else unk += Math.min(prevPct, 100 / pos) * f / 100;
+  });
+  if (!found) return items.some(i => lacFactor(i.n) === 0 && /milch|kaese|butter|sahne|rahm/.test(norm(i.n))) ? {lo:0, hi:0, est:0, src:"calc"} : null;
+  let hi = sure + unk, est = sure + unk * 0.4;
+  /* Laktose ist ein Zucker – mehr als der Zuckergehalt geht nicht */
+  if (raw.sug != null && isFinite(raw.sug)){ hi = Math.min(hi, +raw.sug); est = Math.min(est, hi); }
+  const r1 = x => Math.round(x * 10) / 10;
+  return {lo: r1(Math.min(sure, hi)), hi: r1(hi), est: r1(est), rough: unk > 0.05, src:"calc"};
+}
+
 /* Neue Kategorien für die Lebensmittel-Liste aus den Regeln ableiten (Spalten der Tabelle haben Vorrang) */
 if (typeof FOODS !== "undefined"){
   const EXTRA = {"Zuckerfreier Kaugummi":{s:2, o:2}, "Tofu, Soja":{o:1}, "Sojamilch":{o:1}};
@@ -210,4 +276,4 @@ if (typeof FOODS !== "undefined"){
   }
 }
 
-if (typeof module !== "undefined") module.exports = {CAT_DEF, CAT, KEYS, CATS, LABEL, norm, ingKey, parsePct, rateText, finalLevel, evaluate, reasonText, splitIngredients, recipeItem, recipeRaw, analyze};
+if (typeof module !== "undefined") module.exports = {CAT_DEF, CAT, KEYS, CATS, LABEL, norm, ingKey, parsePct, rateText, finalLevel, evaluate, reasonText, splitIngredients, recipeItem, recipeRaw, analyze, estimateLactose, lacFactor};

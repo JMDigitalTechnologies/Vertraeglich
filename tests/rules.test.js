@@ -6,7 +6,7 @@ const root = path.join(__dirname, "..");
 const ctx = {console}; vm.createContext(ctx);
 vm.runInContext(fs.readFileSync(path.join(root, "data.js"), "utf8") + "\n" +
   fs.readFileSync(path.join(root, "engine.js"), "utf8").replace(/if \(typeof module !== "undefined"\)[\s\S]*$/, "") +
-  "\nthis.E = {evaluate, splitIngredients, recipeRaw, RECIPES, KEYS, FOODS};", ctx);
+  "\nthis.E = {evaluate, splitIngredients, recipeRaw, RECIPES, KEYS, FOODS, estimateLactose};", ctx);
 const E = ctx.E;
 function prof(spec){
   const on = {}, sens = {};
@@ -96,6 +96,20 @@ for (const [txt, spec, want] of CASES){
 }
 /* Rezepte: jede Zutat muss sich auswerten lassen */
 for (const r of E.RECIPES){ const items = E.recipeRaw(r).items; if (items.some(i => !i.n)){ fail++; console.log("✕ Rezept mit leerer Zutat: " + r.t); } }
+/* Laktose-Schätzung (g/100 g) */
+const LAC_CASES = [
+  ["Zucker, Palmöl, Haselnüsse 13%, Magermilchpulver 8,7%, fettarmer Kakao 7,4%", {}, 4.4],
+  ["Vollmilch 3,5 % Fett", {}, 4.8],
+  ["Weizenmehl, Wasser, Hefe, Salz", {}, null],
+  ["laktosefreie Milch 1,5% Fett", {lf:true}, 0.05],
+  ["Milch", {lac:4.7}, 4.7],
+  ["Milch, Salz, Lab, Käsereikulturen", {sug:0}, 0],
+];
+for (const [txt, x, want] of LAC_CASES){
+  const r = E.estimateLactose(Object.assign({items: E.splitIngredients(txt).parts.map(n => ({n}))}, x));
+  const got = r ? r.est : null;
+  if (got !== want){ fail++; console.log(`✕ Laktose erwartet ${want}, bekommen ${got}: ${txt}`); }
+}
 /* Rezepte: was in der Zubereitung verwendet wird, steht auch in der Zutatenliste */
 const norm = s => String(s||"").toLowerCase().replace(/ä/g,"ae").replace(/ö/g,"oe").replace(/ü/g,"ue").replace(/ß/g,"ss");
 const STEP_WORDS = ["salz","pfeffer","oel","wasser","zucker","zitronensaft","limettensaft","essig","butter","milch","haferdrink","hafermilch","reismilch","sahne","kraeuter","petersilie","schnittlauch","dill","basilikum","koriander","minze","rosmarin","zimt","muskat","kurkuma","ingwer","honig","ahornsirup","mehl","staerke","backpulver","sesam","kokosmilch","kokosdrink","knoblauch","zwiebel","ei","eier","frischkaese","joghurt","quark","parmesan","feta","mozzarella","kaese","pilze","champignons","fisch","tomaten","wein"];

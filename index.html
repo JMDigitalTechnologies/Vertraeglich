@@ -469,6 +469,13 @@ details.disc[open]>summary .chev{transform:rotate(90deg)}
 .prog-steps i.on{background:var(--brand)}
 .prog-head .prog-steps{margin-bottom:var(--s2)}
 .prog-head .prog-steps i{width:28px;height:6px}
+.lac-amt{margin:0}
+.lac-pill{margin-top:var(--s2);padding:var(--s2) var(--s3);border-radius:var(--r-md);background:var(--brand-soft);color:var(--brand-ink)}
+.lac-opts{margin-top:var(--s3);padding-top:var(--s3);border-top:1px solid var(--line)}
+.lac-row{display:flex;align-items:center;justify-content:space-between;gap:var(--s3);min-height:var(--touch);font-size:var(--fs-md)}
+.lac-row select.input{width:auto;min-width:9rem}
+.lac-num{display:flex;align-items:center;gap:6px;color:var(--ink-2)}
+.lac-num .input{width:6.5rem;text-align:right}
 .swap-note{font-size:var(--fs-sm);color:var(--ink-2);font-weight:400}
 .tag-rec{display:inline-block;font-size:11px;font-weight:700;color:var(--accent-ink);background:var(--accent-soft);border-radius:999px;padding:1px 8px;margin-left:4px;vertical-align:2px}
 .onb-feat{margin-top:var(--s3)}
@@ -709,7 +716,7 @@ details.disc[open]>summary .chev{transform:rotate(90deg)}
 
 <script>
 /* Auto-Update: bei jedem Öffnen prüfen, ob es eine neuere Version gibt, und dann neu laden */
-const APP_VERSION = 20;
+const APP_VERSION = 21;
 (function(){
   document.getElementById("ver").textContent = "Version " + APP_VERSION;
   let checking = false;
@@ -733,10 +740,10 @@ const APP_VERSION = 20;
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") checkUpdate(); });
 })();
 </script>
-<script src="config.js?v=20"></script>
-<script src="data.js?v=20"></script>
-<script src="engine.js?v=20"></script>
-<script src="app.js?v=20"></script>
-<script src="features.js?v=20"></script>
+<script src="config.js?v=21"></script>
+<script src="data.js?v=21"></script>
+<script src="engine.js?v=21"></script>
+<script src="app.js?v=21"></script>
+<script src="features.js?v=21"></script>
 </body>
 </html>

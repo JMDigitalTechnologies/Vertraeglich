@@ -514,7 +514,7 @@ function onHitsClick(e){
 $("#scanInfo").addEventListener("click", onHitsClick);
 $("#manualHits").addEventListener("click", onHitsClick);
 
-const OFF_FIELDS = "product_name,product_name_de,generic_name_de,brands,ingredients_text_de,ingredients_text,allergens_tags,traces_tags,labels_tags,categories_tags";
+const OFF_FIELDS = "product_name,product_name_de,generic_name_de,brands,ingredients_text_de,ingredients_text,allergens_tags,traces_tags,labels_tags,categories_tags,nutriments";
 function productName(p, code){
   return [p.brands && String(p.brands).split(",")[0].trim(), p.product_name_de || p.product_name || p.generic_name_de].filter(Boolean).join(" – ") || ("Produkt " + code);
 }
@@ -543,7 +543,9 @@ function productToRaw(p, code){
   if (trWords.length) tr = (tr ? tr + " " : "") + "Kann Spuren von " + trWords.join(", ") + " enthalten";
   const cats = p.categories_tags || [];
   const drink = cats.some(c => /beverages|drinks|getraenke/.test(c)) || /(^|\s)(saft|nektar|limonade|cola|eistee|tee|kaffee|wasser|schorle|smoothie|drink|bier|wein|sekt|milch|kakao|energy)(\s|$)/i.test(norm(name).replace(/[^a-z ]/g, " "));
-  return {name, drink, full: !!txt.trim(), raw: {mode:"label", items, spuren: tr, gf, lf}};
+  const nu = p.nutriments || {};
+  const lac = nu.lactose_100g ?? nu.lactose_100ml, sug = nu.sugars_100g ?? nu.sugars_100ml;
+  return {name, drink, full: !!txt.trim(), raw: {mode:"label", items, spuren: tr, gf, lf, lac: lac == null || lac === "" ? null : +lac, sug: sug == null || sug === "" ? null : +sug}};
 }
 async function lookup(code, where){
   try{ if (navigator.vibrate) navigator.vibrate(60); }catch(e){}
@@ -657,6 +659,7 @@ function openFoodSheet(f){
   ${act.length ? `<div class="chips" style="margin-top:var(--s3)">${sorted.map(c => chip(lv[c], esc(CATS[c]), ": " + LABEL[lv[c]])).join("")}${m === "bad" ? chip(2, "Persönlich", ": Meiden") : ""}</div>` : ""}
   ${rest.length ? `<details class="disc" style="margin-top:var(--s2)"><summary>${SVG.chev}Weitere Kategorien</summary><div class="chips">${rest.map(c => `<span class="chip off">${badge(c, lv[c])}${esc(CATS[c])}: ${LABEL[lv[c]]}</span>`).join("")}</div></details>` : ""}
   <section class="block"><h3 class="block-title">Deine Erfahrung</h3>${mkButtons(key, f.n, m)}</section>
+  ${typeof lacBlock === "function" ? lacBlock({mode:"food", items:[{n:f.n}]}) : ""}
   ${subsHtml(f.n, lv, act)}
   <section class="block"><h3 class="block-title">Heute ${f.k === "Getränke" ? "getrunken" : "gegessen"}?</h3><p class="hint" style="margin:-4px 0 var(--s2)">Trag ein, wie du es vertragen hast – das fließt in die Tagebuch-Analyse ein.</p>
   ${reactHtml(null, k => `data-fr="${k}"`)}</section>`;
@@ -832,7 +835,7 @@ function renderProfile(){
       <ul class="cat-list">${cs.map(d => { const c = d.k, on = profile.on[c]; return `
         <li class="cat-row">
           <label class="cat-toggle"><span class="txt"><b>${esc(d.n)}</b><small>${esc(CAT_DESC[c])}</small></span><span class="sw"><input type="checkbox" role="switch" data-on="${c}"${on ? " checked" : ""}><span></span></span></label>
-          ${on ? `<div class="sens"><div class="seg" role="radiogroup" aria-label="Empfindlichkeit ${esc(d.n)}">${[1,2,3].map(s => `<button type="button" role="radio" aria-checked="${profile.sens[c]===s}" data-sens="${c}" data-s="${s}">${(SENS_LBL_CAT[c] || SENS_LBL)[s-1]}</button>`).join("")}</div><p class="sens-hint">${esc(SENS_TXT[c][profile.sens[c]])}</p></div>` : ""}
+          ${on ? `<div class="sens"><div class="seg" role="radiogroup" aria-label="Empfindlichkeit ${esc(d.n)}">${[1,2,3].map(s => `<button type="button" role="radio" aria-checked="${profile.sens[c]===s}" data-sens="${c}" data-s="${s}">${(SENS_LBL_CAT[c] || SENS_LBL)[s-1]}</button>`).join("")}</div><p class="sens-hint">${esc(SENS_TXT[c][profile.sens[c]])}</p>${c === "l" && typeof lacOptsHtml === "function" ? lacOptsHtml() : ""}</div>` : ""}
         </li>`; }).join("")}</ul>
     </section>`;
   }).join("");

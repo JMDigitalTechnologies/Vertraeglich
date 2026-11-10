@@ -22,7 +22,7 @@ const FEATURES = [
 const FEAT = Object.fromEntries(FEATURES.map(f => [f.k, f]));
 const DEFAULT_FEATURES = {foods:true, recipes:true, diary:true};
 
-let settings = {features: Object.assign({}, DEFAULT_FEATURES), newHint: true, programs: {}, cardLang: "en"};
+let settings = {features: Object.assign({}, DEFAULT_FEATURES), newHint: true, programs: {}, cardLang: "en", lac: {show: true, pill: false, fcc: 4500, f: 0}};
 function loadSettings(){
   const s = LS.get("vt_settings");
   if (s){
@@ -32,6 +32,7 @@ function loadSettings(){
     if (s.emergency && Object.keys(s.emergency).length){ const me = people.list.find(p => p.id === "main"); if (me && !me.emergency) me.emergency = s.emergency; delete settings.emergency; syncPerson(); }
   } else settings.newHint = hasStoredProfile || history.length > 0;
   settings.programs = settings.programs || {};
+  settings.lac = Object.assign({show: true, pill: false, fcc: 4500, f: 0}, settings.lac || {});
 }
 function saveSettings(){ LS.set("vt_settings", settings); }
 function F(k){
@@ -428,7 +429,7 @@ function othersHtml(e){
 function resultExtras(e, ev, where){
   let h = "";
   const othersAllergy = multi() && people.list.some(p => p.id !== people.active && hasAllergy(normProfile(p.profile || {})));
-  if (where === "top"){ if (multi() && othersAllergy) h += othersHtml(e); return h; }
+  if (where === "top"){ h += lacBlock(e.raw); if (multi() && othersAllergy) h += othersHtml(e); return h; }
   if (multi() && !othersAllergy) h += othersHtml(e);
   if (F("lists") && e.src !== "symptom"){
     const f = isFav(e);
@@ -1003,6 +1004,49 @@ $("#menuPhoto").addEventListener("change", async ev => {
        <div class="card flush" style="margin-top:var(--s3)">${rows.sort((a, b) => b.lvl - a.lvl).map(x => `<div class="menu-line">${st(x.lvl)}<div class="txt"><b>${esc(x.l)}</b>${x.bad.length ? `<div class="meta">${x.bad.map(c => esc(CATS[c]) + ": " + esc((x.r.why[c] || []).join(", ") || "möglich")).join(" · ")}</div>` : ""}</div></div>`).join("")}</div>`;
   }catch(e){ $("#menuOut").innerHTML = fbHtml("Texterkennung nicht möglich", "Bist du online? Beim ersten Mal muss die Texterkennung geladen werden.", "", SVG.warn); }
   inn.onclick = e2 => { if (e2.target.closest("[data-menu-card]")) openCardSheet(); };
+});
+
+/* ================= Laktose: Menge & Laktase-Vorschlag ================= */
+/* Laktase-Bedarf je g Laktose: Laborwert ~200 FCC; im Alltag braucht es meist mehr. Startwerte je Empfindlichkeit. */
+const LAC_PER_G = {1: 250, 2: 500, 3: 1000};
+const deNum = (x, d = 1) => Number(x).toLocaleString("de-DE", {maximumFractionDigits: d});
+function lacPerG(){ return +settings.lac.f || LAC_PER_G[P().sens.l || 2]; }
+function lacBlock(raw){
+  if (!P().on.l || settings.lac.show === false) return "";
+  const est = estimateLactose(raw); if (!est) return "";
+  let amt, lvl;
+  if (est.src === "lf"){ amt = "unter 0,1 g pro 100 g"; lvl = "laktosefrei gekennzeichnet"; }
+  else if (est.src === "label"){ amt = deNum(est.hi) + " g pro 100 g"; lvl = "Angabe des Herstellers"; }
+  else if (est.hi < 0.1){ amt = "praktisch keine"; lvl = "gereift oder ohne Milchzucker"; }
+  else { amt = "ca. " + deNum(est.est) + " g pro 100 g"; lvl = est.rough ? "grob geschätzt – Mengenanteile fehlen in der Zutatenliste" : "geschätzt aus der Zutatenliste"; }
+  const g = est.est;
+  let pill = "";
+  if (settings.lac.pill && g >= 0.1 && est.src !== "lf"){
+    const fcc = Math.max(100, Math.round(g * lacPerG() / 100) * 100), st = +settings.lac.fcc || 4500;
+    const tabs = Math.max(0.5, Math.ceil(fcc / st * 2) / 2);
+    const tTxt = tabs === 0.5 ? "½ Tablette" : (tabs % 1 ? deNum(Math.floor(tabs), 0) + "½" : deNum(tabs, 0)) + (tabs > 1 ? " Tabletten" : " Tablette");
+    pill = `<div class="lac-pill"><b>≈ ${deNum(fcc, 0)} FCC pro 100 g</b> · etwa ${tTxt} à ${deNum(st, 0)} FCC</div>
+      <p class="hint" style="margin-top:4px">Grober Startwert (${deNum(lacPerG(), 0)} FCC je g Laktose). Der Bedarf ist individuell – nimm Laktase zum ersten Bissen und passe die Menge nach deiner Erfahrung an.</p>`;
+  }
+  return `<section class="block lac"><h3 class="block-title">Laktose</h3><p class="lac-amt"><b>${amt}</b> <span class="meta">· ${lvl}</span></p>${g >= 0.1 && g <= 1 && est.src !== "lf" ? `<p class="hint">Wenig – kleine Mengen vertragen viele mit Laktoseintoleranz.</p>` : ""}${pill}</section>`;
+}
+function lacOptsHtml(){
+  const s = settings.lac, auto = LAC_PER_G[profile.sens.l || 2];
+  return `<div class="lac-opts">
+    <label class="lac-row"><span>Laktosemenge im Ergebnis zeigen</span><span class="sw"><input type="checkbox" role="switch" data-lac="show"${s.show !== false ? " checked" : ""}><span></span></span></label>
+    <label class="lac-row"><span>Vorschlag für Laktase-Tabletten</span><span class="sw"><input type="checkbox" role="switch" data-lac="pill"${s.pill ? " checked" : ""}><span></span></span></label>
+    ${s.pill ? `<label class="lac-row"><span>Stärke deiner Tablette</span><span class="lac-num"><input class="input" type="number" inputmode="numeric" min="500" step="500" data-lac-num="fcc" value="${+s.fcc || 4500}"> FCC</span></label>
+    <label class="lac-row"><span>FCC je g Laktose</span><select class="input" data-lac-num="f"><option value="0"${!+s.f ? " selected" : ""}>Automatisch (${deNum(auto, 0)})</option>${[250, 500, 1000, 1500].map(v => `<option value="${v}"${+s.f === v ? " selected" : ""}>${deNum(v, 0)}</option>`).join("")}</select></label>
+    <p class="hint">Automatisch richtet sich nach deiner Empfindlichkeit. Laborwert: rund 200 FCC bauen 1 g Laktose ab, im Alltag braucht es meist mehr.</p>` : ""}
+  </div>`;
+}
+document.addEventListener("change", ev => {
+  const t = ev.target.closest("[data-lac],[data-lac-num]"); if (!t) return;
+  if (t.dataset.lac) settings.lac[t.dataset.lac] = t.checked;
+  else settings.lac[t.dataset.lacNum] = Math.max(0, +t.value || 0);
+  saveSettings(); renderProfile();
+  const sel = t.dataset.lac ? `[data-lac="${t.dataset.lac}"]` : `[data-lac-num="${t.dataset.lacNum}"]`;
+  const n = document.querySelector(sel); if (n) n.focus({preventScroll: true});
 });
 
 /* ================= Darstellung (hell/dunkel) ================= */
